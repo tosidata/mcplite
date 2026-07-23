@@ -1,0 +1,8 @@
+^\.eca($|/)
+^\.github$
+^LICENSE\.md$
+^docs/mcp-spec($|/)
+^cran-comments\.md$
+^[^/]+\.Rcheck($|/)
+^mcplite_[^/]+\.tar\.gz$
+(^|/)AGENTS\.md$

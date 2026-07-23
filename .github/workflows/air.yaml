@@ -1,0 +1,24 @@
+name: air
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  air:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Air
+        uses: posit-dev/setup-air@v1
+        with:
+          version: "0.10.0"
+
+      - name: Check formatting
+        run: air format . --check
