@@ -13,7 +13,13 @@ calculations, report helpers, or local automation.
 
 ## Installation
 
-`mcplite` is not yet on CRAN. Install it from GitHub:
+Install the released version from CRAN:
+
+```r
+install.packages("mcplite")
+```
+
+Install the development version from GitHub:
 
 ```r
 pak::pak("tosidata/mcplite")

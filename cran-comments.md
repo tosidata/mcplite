@@ -1,6 +1,6 @@
 ## Submission
 
-This is the first submission of mcplite.
+This is the first submission of mcplite, current as of July 23, 2026.
 
 ## Final local environment
 
@@ -15,17 +15,16 @@ This is the first submission of mcplite.
 
 A fresh source tarball was checked with `R CMD check --as-cran --timings`.
 
-- 0 errors, 0 warnings, and 1 note
+- 0 errors, 0 warnings, 0 notes
 - Examples: OK
 - PDF manual: OK
 - Source archive: no `.eca` or `AGENTS.md` files
 
-## Notes
+## Release documentation validation
 
-1. Local HTML validation was skipped because the system `tidy` command was
-   unavailable. This is a limitation of the local validation environment.
-2. URL validation of the GitHub Actions badge is deferred while the new
-   repository remains private; unauthenticated requests return HTTP 404.
+- The public GitHub repository and GitHub Pages site are live.
+- `urlchecker::url_check()` passed all 5 URLs.
+- The final package-name audit found no collision.
 
 ## GitHub Actions matrix validation
 
@@ -38,14 +37,5 @@ On 2026-07-23, the clean repository snapshot passed the GitHub Actions matrix:
 
 ## External validation disposition
 
-On 2026-07-23, the maintainer accepted the completed local and GitHub Actions
-matrix checks as sufficient for this preparation round. Win-builder and R-hub
-will not be used for this round.
-
-## Pending before submission
-
-- Make the GitHub repository public, then add accessible `URL` and
-  `BugReports` fields.
-- Rerun URL validation after adding `URL` and `BugReports`.
-- Perform the final case-insensitive package-name availability check against
-  current CRAN, the CRAN Archive, and current Bioconductor.
+Win-builder and R-hub were not used. The maintainer accepted the local and
+GitHub Actions matrix validation as sufficient for this first submission.
