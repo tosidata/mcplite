@@ -1,5 +1,5 @@
 Package: mcplite
-Title: Lightweight stdio MCP Server for R
+Title: Lightweight Stdio MCP Server for R
 Version: 0.1.0
 Authors@R: c(
     person("Juha", "Itkonen", , "juha@tosidata.com", role = c("aut", "cre", "cph"))

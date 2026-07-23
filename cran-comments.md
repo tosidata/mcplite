@@ -15,7 +15,8 @@ This is the first submission of mcplite, current as of July 23, 2026.
 
 A fresh source tarball was checked with `R CMD check --as-cran --timings`.
 
-- 0 errors, 0 warnings, 0 notes
+- 0 errors, 0 warnings, 1 note
+- Notes: expected incoming-feasibility note for the maintainer identity and `New submission`
 - Examples: OK
 - PDF manual: OK
 - Source archive: no `.eca` or `AGENTS.md` files
