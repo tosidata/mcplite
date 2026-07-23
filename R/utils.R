@@ -36,6 +36,10 @@ is_scalar_character <- function(x) {
   is.character(x) && length(x) == 1L && !is.na(x)
 }
 
+is_scalar_numeric <- function(x) {
+  is.numeric(x) && length(x) == 1L && !is.na(x)
+}
+
 empty_named_list <- function(x) {
   is.list(x) && length(x) == 0 && !is.null(names(x))
 }

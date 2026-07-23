@@ -176,9 +176,7 @@ content_resource_link <- function(
 
   if (
     !is.null(size) &&
-      (!is.numeric(size) ||
-        length(size) != 1 ||
-        is.na(size) ||
+      (!is_scalar_numeric(size) ||
         !is.finite(size) ||
         size < 0 ||
         size != floor(size))
@@ -315,9 +313,7 @@ normalize_content_annotations <- function(annotations) {
   priority <- annotations$priority
   if (
     !is.null(priority) &&
-      (!is.numeric(priority) ||
-        length(priority) != 1 ||
-        is.na(priority) ||
+      (!is_scalar_numeric(priority) ||
         !is.finite(priority) ||
         priority < 0 ||
         priority > 1)

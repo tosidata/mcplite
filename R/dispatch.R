@@ -14,9 +14,7 @@ message_has_id <- function(message) {
 
 valid_message_id <- function(id) {
   is_string_id <- is_scalar_character(id)
-  is_integer_id <- is.numeric(id) &&
-    length(id) == 1 &&
-    !is.na(id) &&
+  is_integer_id <- is_scalar_numeric(id) &&
     is.finite(id) &&
     id == floor(id)
 
