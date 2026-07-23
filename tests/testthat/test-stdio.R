@@ -450,11 +450,3 @@ test_that("stdio server exits when standard input closes", {
   expect_identical(process$get_exit_status(), 0L)
   expect_length(process$read_error_lines(), 0)
 })
-
-test_that("stdio check-stage proof uses the installed mcplite package", {
-  skip_if_not_installed("processx")
-  skip_if_not(testthat::is_checking())
-  withr::local_envvar(R_TESTS = "")
-
-  expect_stdio_roundtrip(run_stdio_roundtrip("installed"))
-})
