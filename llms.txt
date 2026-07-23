@@ -1,0 +1,146 @@
+# mcplite
+
+`mcplite` lets you expose R functions as [Model Context
+Protocol](https://modelcontextprotocol.io/) (MCP) tools. It runs a small
+server over standard input and output, which is the transport most
+desktop MCP clients use to launch local tool servers.
+
+Use it when you want an MCP client to call R code such as data lookups,
+calculations, report helpers, or local automation.
+
+## Installation
+
+`mcplite` is not yet on CRAN. Install it from GitHub:
+
+``` r
+
+pak::pak("tosidata/mcplite")
+```
+
+## Quick start
+
+Save a complete server definition as `server.R`:
+
+``` r
+
+library(mcplite)
+
+add_numbers <- tool(
+  function(x, y) {
+    x + y
+  },
+  name = "add_numbers",
+  description = "Add two numbers and return the result.",
+  arguments = list(
+    x = type_number("First number."),
+    y = type_number("Second number.")
+  )
+)
+
+mcp_server(list(add_numbers))
+```
+
+Configure your MCP client to launch the script. The `command` must
+resolve to the `Rscript` executable. If `Rscript` is not discoverable,
+run `Sys.which("Rscript")` in R and use the returned path as the
+client’s `command`. Keep the server script path absolute too. A Claude
+Desktop-style configuration looks like this:
+
+``` json
+{
+  "mcpServers": {
+    "r-tools": {
+      "command": "Rscript",
+      "args": [
+        "--vanilla",
+        "/absolute/path/to/server.R"
+      ]
+    }
+  }
+}
+```
+
+Restart the client and check that it discovers `add_numbers`. As a first
+call, ask it to run `add_numbers` with `x = 2` and `y = 3`; the result
+should be `5`.
+
+[`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md)
+starts serving immediately and runs until standard input closes, so
+launch it through the MCP client rather than from an interactive R
+console.
+
+## Results
+
+For most tools, return an ordinary R value. Character values become
+text, while other JSON-serializable values are returned as JSON in a
+text content block. Bare lists are ordinary results, not MCP result
+objects.
+
+Use
+[`tool_result()`](https://tosidata.github.io/mcplite/reference/tool_result.md)
+when a tool needs rich content blocks or structured results. See
+[`?tool_result`](https://tosidata.github.io/mcplite/reference/tool_result.md)
+for the result formats and compatibility details.
+
+## Scope
+
+`mcplite` supports local, client-launched stdio tool servers. It does
+not implement HTTP transport or the MCP prompts, resources, and sampling
+capabilities. Tools can still return supported content blocks; content
+blocks are tool results, not implementations of those MCP capabilities.
+
+## ellmer interoperability
+
+Compatible
+[`ellmer::tool()`](https://ellmer.tidyverse.org/reference/tool.html)
+definitions can be passed directly to
+[`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md).
+`ellmer` is optional and is not needed for tools defined with `mcplite`.
+
+## Function reference
+
+See [`?tool`](https://tosidata.github.io/mcplite/reference/tool.md) for
+tool definitions,
+[`help("tool-types", package = "mcplite")`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+for schema helpers,
+[`?tool_result`](https://tosidata.github.io/mcplite/reference/tool_result.md)
+and
+[`help("content-blocks", package = "mcplite")`](https://tosidata.github.io/mcplite/reference/content-blocks.md)
+for rich results, and
+[`?mcp_server`](https://tosidata.github.io/mcplite/reference/mcp_server.md)
+for server behavior, scope, lifecycle, interoperability, and tracing
+details.
+
+# Package index
+
+## All functions
+
+- [`content_text()`](https://tosidata.github.io/mcplite/reference/content-blocks.md)
+  [`content_image()`](https://tosidata.github.io/mcplite/reference/content-blocks.md)
+  [`content_audio()`](https://tosidata.github.io/mcplite/reference/content-blocks.md)
+  [`content_resource_link()`](https://tosidata.github.io/mcplite/reference/content-blocks.md)
+  [`content_resource()`](https://tosidata.github.io/mcplite/reference/content-blocks.md)
+  : Construct protocol-native MCP content blocks
+- [`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md)
+  : Run an MCP server for R tools over stdio
+- [`type_boolean()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  [`type_integer()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  [`type_number()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  [`type_string()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  [`type_enum()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  [`type_array()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  [`type_object()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  [`type_from_schema()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  [`type_ignore()`](https://tosidata.github.io/mcplite/reference/tool-types.md)
+  : Define MCP tool argument schemas
+- [`tool()`](https://tosidata.github.io/mcplite/reference/tool.md) :
+  Define an MCP tool
+- [`tool_result()`](https://tosidata.github.io/mcplite/reference/tool_result.md)
+  : Construct protocol-native MCP tool results
+
+# Articles
+
+### All vignettes
+
+- [Get started with
+  mcplite](https://tosidata.github.io/mcplite/articles/mcplite.md):
