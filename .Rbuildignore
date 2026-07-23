@@ -6,3 +6,7 @@
 ^[^/]+\.Rcheck($|/)
 ^mcplite_[^/]+\.tar\.gz$
 (^|/)AGENTS\.md$
+^_pkgdown\.yml$
+^pkgdown-site$
+^pkgdown$
+^vignettes/mcplite\.Rmd$

@@ -54,3 +54,7 @@ tool_result(
 
 tool_result(structured_content = list(ok = TRUE, count = 2L))
 }
+\seealso{
+\code{\link[=content_text]{content_text()}}, \code{\link[=content_image]{content_image()}}, \code{\link[=content_audio]{content_audio()}},
+\code{\link[=content_resource_link]{content_resource_link()}}, and \code{\link[=content_resource]{content_resource()}}.
+}

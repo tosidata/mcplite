@@ -23,6 +23,8 @@
 #'   are created only during serialization.
 #'
 #' @return A protocol-native tool result for return from a tool function.
+#' @seealso [content_text()], [content_image()], [content_audio()],
+#'   [content_resource_link()], and [content_resource()].
 #' @export
 #'
 #' @examples

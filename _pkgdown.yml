@@ -1,0 +1,5 @@
+url: https://tosidata.github.io/mcplite/
+destination: pkgdown-site
+template:
+  bootstrap: 5
+
