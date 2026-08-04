@@ -5,6 +5,8 @@ Protocol](https://modelcontextprotocol.io/) (MCP) tools. It runs a small
 server over standard input and output, which is the transport most
 desktop MCP clients use to launch local tool servers.
 
+Documentation is available at <https://tosidata.github.io/mcplite/>.
+
 Use it when you want an MCP client to call R code such as data lookups,
 calculations, report helpers, or local automation.
 

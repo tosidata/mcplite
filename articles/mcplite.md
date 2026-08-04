@@ -11,12 +11,17 @@ its tools.
 
 ## 1. Install mcplite
 
-`mcplite` is not yet on CRAN. If needed, install `pak` first, then
-install the development version from GitHub:
+Install the released version from CRAN:
 
 ``` r
 
-install.packages("pak")
+install.packages("mcplite")
+```
+
+Install the development version from GitHub:
+
+``` r
+
 pak::pak("tosidata/mcplite")
 ```
 
