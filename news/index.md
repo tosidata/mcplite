@@ -2,6 +2,8 @@
 
 ## mcplite 0.1.0
 
+CRAN release: 2026-08-03
+
 - First release of the lightweight, tools-only Model Context Protocol
   (MCP) server over standard input and output (stdio), supporting the
   MCP lifecycle, ping, `tools/list`, and `tools/call`.
