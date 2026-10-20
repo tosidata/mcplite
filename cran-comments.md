@@ -7,17 +7,19 @@ Update from mcplite 0.1.0 to 0.2.0.
 Checked on Ubuntu 24.04.5 LTS, x86_64-pc-linux-gnu, with R 4.6.1.
 
 - `devtools::test()`: 1,969 passed; 0 failures, warnings, or skips.
-- `devtools::check(document = FALSE, check_dir = tempdir(), cran = TRUE)`:
-  0 errors, 0 warnings, 0 notes (`--as-cran --no-manual`).
+- Final `devtools::check(document = FALSE, cran = TRUE, manual = TRUE)`
+  with an external check directory: 0 errors, 0 warnings, 0 notes.
+  PDF and HTML manual checks passed.
 - Live rairai smoke tests passed after reinstalling the consumer, including
   both CRAN lookup tools and recovery after an invalid package-root request.
 
-## Pending before submission
+## Website and CI checks
 
-- Deploy the updated website and rerun `urlchecker::url_check()`: the new
-  writing-tools and returning-results article URLs currently return 404.
-- Review CI results for this release candidate after pushing. Results from the
-  previous release are not validation of this candidate.
+- The updated website is deployed; `urlchecker::url_check()` passes all URLs.
+- GitHub Actions passed on macOS and Windows with R release, and Ubuntu with
+  R-devel, for candidate commit cc334aa on 2026-10-20.
+- Air formatting and pkgdown build/deployment passed.
+- Source archive excludes internal records and agent configuration files.
 
 ## Compatibility
 
