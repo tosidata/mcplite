@@ -142,17 +142,22 @@ test_that("payload roots retain jsonlite shapes without reinterpretation", {
   )
 
   for (case in cases) {
-    response <- mcplite:::jsonrpc_response(7L, result = list(
-      content = list(list(type = "text", text = "fallback")),
-      isError = FALSE,
-      structuredContent = case$value
-    ))
+    response <- mcplite:::jsonrpc_response(
+      7L,
+      result = list(
+        content = list(list(type = "text", text = "fallback")),
+        isError = FALSE,
+        structuredContent = case$value
+      )
+    )
     expect_identical(
       as.character(mcplite:::to_json_response(response)),
       paste0(
         '{"jsonrpc":"2.0","id":7,"result":{"content":[',
         '{"type":"text","text":"fallback"}],"isError":false,',
-        '"structuredContent":', case$json, "}}"
+        '"structuredContent":',
+        case$json,
+        "}}"
       )
     )
   }
@@ -187,11 +192,16 @@ test_that("nonpayload responses do not consult invalid payload settings", {
     mcplite:::to_json_response(tool_response),
     mcplite:::to_json(tool_response)
   )
-  listing <- mcplite:::jsonrpc_response(1L, result = list(tools = list(list(
-    name = "example",
-    inputSchema = list(type = "object", properties = named_list()),
-    annotations = list(readOnlyHint = TRUE)
-  ))))
+  listing <- mcplite:::jsonrpc_response(
+    1L,
+    result = list(
+      tools = list(list(
+        name = "example",
+        inputSchema = list(type = "object", properties = named_list()),
+        annotations = list(readOnlyHint = TRUE)
+      ))
+    )
+  )
   expect_identical(
     mcplite:::to_json_response(listing),
     mcplite:::to_json(listing)
@@ -206,11 +216,14 @@ test_that("serializer-owned fragments preserve literal large integer digits", {
     },
     .package = "mcplite"
   )
-  response <- mcplite:::jsonrpc_response(1L, result = list(
-    content = list(list(type = "text", text = "large integer")),
-    isError = FALSE,
-    structuredContent = list(n = 1L)
-  ))
+  response <- mcplite:::jsonrpc_response(
+    1L,
+    result = list(
+      content = list(list(type = "text", text = "large integer")),
+      isError = FALSE,
+      structuredContent = list(n = 1L)
+    )
+  )
 
   expect_identical(
     as.character(mcplite:::to_json_response(response)),

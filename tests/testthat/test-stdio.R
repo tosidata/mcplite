@@ -23,7 +23,10 @@ expect_jsonrpc_error <- function(response, id, code) {
   expect_null(response$result)
 }
 
-stdio_server_script <- function(mode = c("source", "installed"), setup = character()) {
+stdio_server_script <- function(
+  mode = c("source", "installed"),
+  setup = character()
+) {
   mode <- match.arg(mode)
 
   libpaths <- paste(capture.output(dput(.libPaths())), collapse = "")
@@ -544,19 +547,22 @@ test_that("stdio isolates combined payload settings from protocol fields", {
   skip_if_not_installed("processx")
   skip_if(testthat::is_checking())
   withr::local_envvar(R_TESTS = "")
-  process <- start_stdio_process("source", setup = c(
-    "options(mcplite.json.null = 'list', mcplite.json.na = 'null', mcplite.json.auto_unbox = FALSE)",
-    "payload <- list(one = 1L, missing = NA_integer_, empty = NULL, nested = list())",
-    "fixed_meta <- list(flag = TRUE, empty = NULL, missing = NA_integer_)",
-    "rich_tool <- run_tool(function() run_result(",
-    "  run_content_text(structure('{\"pre\":1}', class = 'json'),",
-    "    annotations = list(priority = 1, audience = 'user'), meta = fixed_meta),",
-    "  structured_content = payload, meta = fixed_meta),",
-    "  name = 'rich', description = 'Configurable payload.',",
-    "  annotations = list(readOnlyHint = TRUE), output_schema = type_object())",
-    "audio_tool <- run_tool(function() run_result(structured_content = payload),",
-    "  name = 'audio', description = 'Generated configurable fallback.')"
-  ))
+  process <- start_stdio_process(
+    "source",
+    setup = c(
+      "options(mcplite.json.null = 'list', mcplite.json.na = 'null', mcplite.json.auto_unbox = FALSE)",
+      "payload <- list(one = 1L, missing = NA_integer_, empty = NULL, nested = list())",
+      "fixed_meta <- list(flag = TRUE, empty = NULL, missing = NA_integer_)",
+      "rich_tool <- run_tool(function() run_result(",
+      "  run_content_text(structure('{\"pre\":1}', class = 'json'),",
+      "    annotations = list(priority = 1, audience = 'user'), meta = fixed_meta),",
+      "  structured_content = payload, meta = fixed_meta),",
+      "  name = 'rich', description = 'Configurable payload.',",
+      "  annotations = list(readOnlyHint = TRUE), output_schema = type_object())",
+      "audio_tool <- run_tool(function() run_result(structured_content = payload),",
+      "  name = 'audio', description = 'Generated configurable fallback.')"
+    )
+  )
   withr::defer(process$kill())
   messages <- stdio_client_messages()
 
@@ -567,7 +573,10 @@ test_that("stdio isolates combined payload settings from protocol fields", {
   expect_equal(listing$id, 21)
   expect_identical(definition$name, "rich")
   expect_identical(definition$inputSchema$type, "object")
-  expect_identical(definition$inputSchema$properties, structure(list(), names = character()))
+  expect_identical(
+    definition$inputSchema$properties,
+    structure(list(), names = character())
+  )
   expect_false(definition$inputSchema$additionalProperties)
   expect_identical(definition$outputSchema$type, "object")
   expect_true(definition$annotations$readOnlyHint)
@@ -578,11 +587,18 @@ test_that("stdio isolates combined payload settings from protocol fields", {
 
   modern_rich <- jsonlite::parse_json(messages$modern_tool_call)
   modern_rich$params$name <- "rich"
-  process$write_input(paste0(jsonlite::toJSON(modern_rich, auto_unbox = TRUE), "\n"))
+  process$write_input(paste0(
+    jsonlite::toJSON(modern_rich, auto_unbox = TRUE),
+    "\n"
+  ))
   lines <- read_output_lines_until(process, 1)
   expect_length(lines, 1)
   expected_payload <- '{"one":[1],"missing":[null],"empty":{},"nested":[]}'
-  expect_match(lines[[1]], paste0('"structuredContent":', expected_payload), fixed = TRUE)
+  expect_match(
+    lines[[1]],
+    paste0('"structuredContent":', expected_payload),
+    fixed = TRUE
+  )
   modern <- jsonlite::parse_json(lines[[1]])
   expect_equal(modern$id, 22)
   expect_false(modern$result$isError)
@@ -590,18 +606,30 @@ test_that("stdio isolates combined payload settings from protocol fields", {
   expect_identical(modern$result$content[[1]]$type, "text")
   expect_identical(modern$result$content[[1]]$text, '{"pre":1}')
   expect_identical(modern$result$content[[1]]$annotations$priority, 1L)
-  expect_identical(modern$result$content[[1]]$annotations$audience, list("user"))
+  expect_identical(
+    modern$result$content[[1]]$annotations$audience,
+    list("user")
+  )
   expected_meta <- list(flag = TRUE, empty = NULL, missing = "NA")
   expect_identical(modern$result$content[[1]]$`_meta`, expected_meta)
   expect_identical(modern$result$`_meta`[names(expected_meta)], expected_meta)
-  expect_identical(modern$result$`_meta`[["io.modelcontextprotocol/serverInfo"]], info)
+  expect_identical(
+    modern$result$`_meta`[["io.modelcontextprotocol/serverInfo"]],
+    info
+  )
 
   modern_rich$params$name <- "audio"
-  process$write_input(paste0(jsonlite::toJSON(modern_rich, auto_unbox = TRUE), "\n"))
+  process$write_input(paste0(
+    jsonlite::toJSON(modern_rich, auto_unbox = TRUE),
+    "\n"
+  ))
   generated <- read_stdio_response(process)
   expect_false(generated$result$isError)
   expect_identical(generated$result$content[[1]]$text, expected_payload)
-  expect_identical(generated$result$structuredContent, jsonlite::parse_json(expected_payload))
+  expect_identical(
+    generated$result$structuredContent,
+    jsonlite::parse_json(expected_payload)
+  )
   expect_true(process$is_alive())
   expect_length(process$read_error_lines(), 0)
 })
@@ -611,8 +639,14 @@ test_that("stdio contains payload setting and serializer failures and recovers",
   skip_if(testthat::is_checking())
   withr::local_envvar(R_TESTS = "")
   cases <- list(
-    list(setting = "options(mcplite.json.na = 'invalid')", value = "list(n = 1L)"),
-    list(setting = "options(mcplite.json.null = 'invalid')", value = "list(n = 1L)"),
+    list(
+      setting = "options(mcplite.json.na = 'invalid')",
+      value = "list(n = 1L)"
+    ),
+    list(
+      setting = "options(mcplite.json.null = 'invalid')",
+      value = "list(n = 1L)"
+    ),
     list(
       setting = paste0(
         "options(mcplite.json.null = 'list', mcplite.json.na = 'null', ",
@@ -623,17 +657,22 @@ test_that("stdio contains payload setting and serializer failures and recovers",
   )
   for (case in cases) {
     local({
-      process <- start_stdio_process("source", setup = c(
-        case$setting,
-        paste0(
-          "rich_tool <- run_tool(function() ", case$value,
-          ", name = 'rich', description = 'Ordinary serialization failure.')"
-        ),
-        paste0(
-          "audio_tool <- run_tool(function() run_result(structured_content = ",
-          case$value, "), name = 'audio', description = 'Structured failure.')"
+      process <- start_stdio_process(
+        "source",
+        setup = c(
+          case$setting,
+          paste0(
+            "rich_tool <- run_tool(function() ",
+            case$value,
+            ", name = 'rich', description = 'Ordinary serialization failure.')"
+          ),
+          paste0(
+            "audio_tool <- run_tool(function() run_result(structured_content = ",
+            case$value,
+            "), name = 'audio', description = 'Structured failure.')"
+          )
         )
-      ))
+      )
       withr::defer(process$kill())
       messages <- stdio_client_messages()
       process$write_input(paste0(messages$malformed_json, "\n"))
@@ -645,7 +684,10 @@ test_that("stdio contains payload setting and serializer failures and recovers",
       request <- jsonlite::parse_json(messages$modern_tool_call)
       for (name in c("rich", "audio")) {
         request$params$name <- name
-        process$write_input(paste0(jsonlite::toJSON(request, auto_unbox = TRUE), "\n"))
+        process$write_input(paste0(
+          jsonlite::toJSON(request, auto_unbox = TRUE),
+          "\n"
+        ))
         failed <- read_stdio_response(process)
         expect_identical(failed$jsonrpc, "2.0")
         expect_equal(failed$id, 22)
