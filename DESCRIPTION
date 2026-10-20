@@ -16,7 +16,7 @@ BugReports: https://github.com/tosidata/mcplite/issues
 Depends:
     R (>= 4.1.0)
 Imports:
-    jsonlite,
+    jsonlite (>= 0.9.16),
     nanonext (>= 1.6.0),
     otel
 Suggests:

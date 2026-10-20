@@ -8,7 +8,10 @@
 #' Character values are returned as literal text, character vectors are joined
 #' with newlines, and other JSON-serializable R values are encoded as JSON.
 #' Pre-serialized JSON strings remain text, and bare lists are ordinary values,
-#' not MCP result objects.
+#' not MCP result objects. Ordinary `NULL` returns the text `"{}"`. To choose
+#' JSON mappings for noncharacter values, see "Payload JSON options" in
+#' [tool_result()]. Configure options before constructing results and starting
+#' the server; they do not affect schemas, protocol fields, or metadata.
 #'
 #' `arguments` accepts either the existing named list of property helpers or one
 #' complete object-root schema from `type_from_schema()`. Complete schemas must

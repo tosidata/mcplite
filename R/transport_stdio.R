@@ -21,7 +21,7 @@ run_stdio_server <- function(state) {
     state <- handled$state
 
     if (!is.null(handled$response)) {
-      nanonext::write_stdout(to_json(handled$response))
+      nanonext::write_stdout(to_json_response(handled$response))
     }
 
     client <- nanonext::recv_aio(reader_socket, mode = "string", cv = cv)

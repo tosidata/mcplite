@@ -11,9 +11,12 @@
 * Expands tool schemas and protocol-native results. Complete object-root input
   schemas retain JSON Schema 2020-12 keywords; modern clients can receive
   supported output-schema roots and all JSON structured-content shapes, while
-  older protocols receive compatible projections and fallback content. In
-  `tool_result()`, `NULL` means no structured content and scalar atomic `NA`
-  represents JSON `null`.
+  older protocols receive compatible projections and fallback content.
+* Adds payload options `mcplite.json.null`, `mcplite.json.na`, and
+  `mcplite.json.auto_unbox`, preserving published defaults and fixed protocol
+  and metadata encoding. See `tool_result()` for configuration details.
+* Restores empty structured-root lists as `{}` and removes the unreleased
+  scalar-NA coercion in favor of jsonlite's class-specific mappings.
 
 # mcplite 0.1.0
 

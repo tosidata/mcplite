@@ -77,6 +77,25 @@ jsonrpc_response <- function(id, result = NULL, error = NULL) {
   ))
 }
 
+to_json_response <- function(response) {
+  if (!("structuredContent" %in% names(response[["result"]]))) {
+    return(to_json(response))
+  }
+
+  # Compose only this JSON-RPC boundary. All members are freshly serialized;
+  # verbatim handling never traverses the original response or user values.
+  fragments <- lapply(names(response), function(name) {
+    if (identical(name, "result")) {
+      tool_result_to_json(response[[name]])
+    } else {
+      to_json(response[[name]])
+    }
+  })
+  names(fragments) <- names(response)
+
+  toJSON(fragments, auto_unbox = TRUE, null = "null", json_verbatim = TRUE)
+}
+
 jsonrpc_parse_error <- function() {
   jsonrpc_response(
     NULL,

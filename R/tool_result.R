@@ -5,8 +5,10 @@
 #' constructors; ordinary R values, including bare lists and JSON strings,
 #' retain the single-text-block conversion used by `mcplite::tool()`.
 #'
-#' Use `NA` for explicit JSON `null` and `NULL` for absent structured content.
-#' Named and unnamed empty lists represent `{}` and `[]`, respectively.
+#' `NULL` means absent structured content. A bare empty list at the structured
+#' root represents `{}`, as does a named empty list. Nested and ordinary
+#' unnamed empty lists retain jsonlite's `[]` mapping. An ordinary return value
+#' of `NULL` becomes the text `"{}"` instead.
 #'
 #' When `structured_content` is supplied and `content` is omitted,
 #' `tool_result()` generates exactly one JSON text fallback block. Explicitly
@@ -16,22 +18,48 @@
 #' structured content. Compatible explicit or generated content remains
 #' available whenever a legacy projection omits `structuredContent`.
 #'
-#' Structured R values use the mappings of [jsonlite::toJSON()]. The `NA` null
-#' convention applies only to an unclassed, dimensionless scalar atomic `NA`;
-#' classed or dimensioned missing values and `NaN` retain their jsonlite
-#' mappings. Tool authors are responsible for conformance with any advertised
-#' output schema. `is_error = TRUE` reports a tool-level error while retaining
-#' the normal MCP tool-result envelope.
+#' Structured R values use the mappings of [jsonlite::toJSON()]. With default
+#' options, logical and character `NA` become JSON `null`; integer, double, and
+#' complex `NA` become the string `"NA"`. Classes, dimensions, and explicit
+#' `I()` or [jsonlite::unbox()] representations retain their jsonlite mappings.
+#' Tool authors are responsible for conformance with any advertised output
+#' schema. `is_error = TRUE` reports a tool-level error while retaining the
+#' normal MCP tool-result envelope.
+#'
+#' @section Payload JSON options:
+#' Configure these package-global R options before constructing results and
+#' starting the server, and keep them stable while the server runs:
+#'
+#' * `mcplite.json.null`: `"null"` (default) or `"list"`. Named payload `NULL`
+#'   fields remain present, as JSON `null` or `{}`, respectively.
+#' * `mcplite.json.na`: unset by default, which omits jsonlite's `na` argument
+#'   and preserves its class-specific defaults. Set `"null"` or `"string"` to
+#'   select that jsonlite mapping. `"null"` also maps `NaN` and infinities to
+#'   JSON `null` and retains missing data-frame fields instead of omitting them.
+#' * `mcplite.json.auto_unbox`: `TRUE` (default) or `FALSE`. Setting `FALSE`
+#'   keeps singleton payload vectors as arrays; explicit `I()` and
+#'   `jsonlite::unbox()` representations still apply.
+#'
+#' Remove an option with `NULL`, for example `options(mcplite.json.na = NULL)`,
+#' to restore its default. This omits `na`; it does not forward `na = NULL`.
+#' These options apply to ordinary noncharacter return-value JSON and to
+#' structured content, its representability checks, generated text fallback,
+#' and protocol-version projection. Protocol fields, schemas, annotations,
+#' and all result and content metadata retain fixed encoding.
+#'
+#' For per-tool conversion choices, return your own JSON as ordinary character
+#' text. JSON-looking strings and jsonlite `json` objects are not parsed or
+#' inserted as raw JSON. In `structured_content`, they remain string values.
 #'
 #' @param content One content block created by a `content_*()` constructor, or
 #'   an ordered list of such blocks. Omitting `content` permits automatic text
 #'   fallback generation from `structured_content`; explicit `content = list()`
 #'   suppresses fallback and is invalid.
 #' @param structured_content Optional R value representable as a JSON object,
-#'   array, or scalar. Use `NA` for JSON `null` and `NULL` for absence. Named
-#'   and unnamed empty lists represent `{}` and `[]`, respectively. `mcplite`
-#'   checks JSON representability but does not validate this value against a
-#'   tool's advertised output schema.
+#'   array, or scalar. `NULL` means absence; a bare empty list at this root
+#'   represents `{}`. Other values follow jsonlite mappings and the payload
+#'   options below. `mcplite` checks JSON representability but does not validate
+#'   this value against a tool's advertised output schema.
 #' @param is_error Whether the result reports a tool error.
 #' @param meta Optional named result metadata. MCP wire names such as `_meta`
 #'   are created only during serialization.
@@ -52,6 +80,17 @@
 #' )
 #'
 #' tool_result(structured_content = list(ok = TRUE, count = 2L))
+#'
+#' local({
+#'   old <- options(mcplite.json.na = "null", mcplite.json.auto_unbox = FALSE)
+#'   on.exit(options(old))
+#'   result <- tool_result(structured_content = list(
+#'     count = 1L,
+#'     values = c(NA_real_, NaN, Inf, -Inf),
+#'     rows = data.frame(id = 1L, missing = NA_real_)
+#'   ))
+#'   result$content[[1]]$text
+#' })
 tool_result <- function(
   content = list(),
   structured_content = NULL,
@@ -63,7 +102,7 @@ tool_result <- function(
 
   if (content_was_missing) {
     content <- if (!is.null(structured_content)) {
-      list(content_text(as.character(to_json(structured_content))))
+      list(content_text(as.character(to_payload_json(structured_content))))
     } else {
       list()
     }
@@ -283,19 +322,24 @@ normalize_structured_content <- function(x) {
     return(NULL)
   }
 
-  # Logical NA encodes as null without changing nested numeric NA mappings.
-  if (
-    is.atomic(x) &&
-      !is.object(x) &&
-      is.null(dim(x)) &&
-      length(x) == 1L &&
-      is.na(x) &&
-      !is.nan(x)
-  ) {
-    x <- NA
+  # The published bare empty structured root is an object. Nested lists and
+  # explicit serializer representations retain their jsonlite mappings.
+  if (identical(x, list())) {
+    x <- named_list()
   }
 
-  check_json_serializable(x, "structured_content")
+  tryCatch(
+    to_payload_json(x),
+    error = function(cnd) {
+      stop(
+        sprintf(
+          "`structured_content` must be JSON serializable: %s",
+          conditionMessage(cnd)
+        ),
+        call. = FALSE
+      )
+    }
+  )
   x
 }
 

@@ -112,8 +112,13 @@ exits when standard input closes.
 Ordinary R return values are the simplest default. A character scalar becomes
 literal text, character vectors are joined with newlines, and other
 JSON-serializable values, such as the named list returned by
-`inventory_status`, become JSON in a text content block. Bare lists are ordinary
+`inventory_status`, become JSON in a text content block. Ordinary `NULL` becomes
+the text `"{}"`; an ordinary `list()` becomes `"[]"`. Bare lists are ordinary
 values, not MCP result objects.
+
+For per-tool serialization choices, return your own JSON as ordinary character
+text, for example with `as.character(jsonlite::toJSON(value, na = "null"))`.
+`mcplite` does not parse JSON-looking text or insert it as raw JSON.
 
 ## Build structured and rich results
 
@@ -132,25 +137,71 @@ tool_result(
 
 If `structured_content` is supplied without `content`, `tool_result()` generates
 one JSON text fallback block. Explicit content is preserved without an extra
-fallback. Use `NA` for JSON `null` and `NULL` to omit structured content. These R
-values have distinct structured-content meanings:
+fallback. `NULL` omits structured content; a bare empty list at the structured
+root represents `{}`. Nested unnamed empty lists retain jsonlite's `[]`
+mapping. With default options, these R values have distinct structured-content
+meanings:
 
 | R value | Structured-content meaning |
 |---|---|
 | `list(ok = TRUE)` | JSON object |
 | `c("a", "b")` | JSON array |
-| `"done"` | JSON string scalar |
-| `structure(list(), names = character())` | Empty JSON object `{}` |
-| `list()` | Empty JSON array `[]` |
-| `NA` | Explicit JSON `null` |
+| `"done"` | JSON string scalar, not parsed as JSON |
+| `list()` or `structure(list(), names = character())` | Empty JSON object `{}` |
+| `I(list())` | Explicit empty JSON array `[]` |
+| `NA` or `NA_character_` | JSON `null` |
+| `NA_integer_`, `NA_real_`, or `NA_complex_` | JSON string `"NA"` |
 | `NULL` | No structured-content field |
 
-See `tool_result()` for details of R-to-JSON mappings.
+JSON-looking strings and jsonlite `json` objects supplied as structured content
+remain string values. See `tool_result()` for details of R-to-JSON mappings.
 
 Image, audio, and resource blob constructors accept data that is already
 base64-encoded; they do not read files, download URLs, infer MIME types, or
 encode payloads. Resource links carry an author-supplied URI but do not add a
 resource endpoint to the server.
+
+## Choose payload JSON mappings
+
+Configure these package-global R options near the top of the server script,
+before constructing results and calling `mcp_server()`. Keep them stable while
+the server runs.
+
+| Option | Default | Supported choices |
+|---|---|---|
+| `mcplite.json.null` | `"null"` | `"null"` or `"list"`: encode named payload `NULL` fields as `null` or `{}`; fields remain present |
+| `mcplite.json.na` | Unset | Omit jsonlite's `na` argument, or select `"null"` or `"string"` |
+| `mcplite.json.auto_unbox` | `TRUE` | `TRUE` or `FALSE`: automatically unbox singleton payload vectors or keep them as arrays |
+
+Defaults preserve jsonlite's class-specific missing-value mappings. Selecting
+`na = "null"` also maps `NaN` and infinities to JSON `null` and retains missing
+data-frame fields. Disabling automatic unboxing changes singleton values such
+as `count = 1L` to `[1]`; explicit `I()` and `jsonlite::unbox()` representations
+still apply. This standalone example inspects the generated text without
+starting a server and restores the session's options afterward:
+
+```{r payload-options}
+local({
+  old <- options(mcplite.json.na = "null", mcplite.json.auto_unbox = FALSE)
+  on.exit(options(old))
+  result <- tool_result(structured_content = list(
+    count = 1L,
+    values = c(NA_real_, NaN, Inf, -Inf),
+    rows = data.frame(id = 1L, missing = NA_real_)
+  ))
+  cat(result$content[[1]]$text, "\n")
+})
+```
+
+Remove any option with `NULL`, for example `options(mcplite.json.na = NULL)`,
+to restore its default. Removing that option omits `na` rather than forwarding
+`na = NULL` to jsonlite.
+
+The options affect ordinary noncharacter return-value JSON and structured
+content, including representability checks, generated fallback, and version
+projection. They never change protocol fields, schemas, annotations, or result
+and content metadata. Tool authors remain responsible for conformance with
+advertised output schemas.
 
 ## Report tool errors
 

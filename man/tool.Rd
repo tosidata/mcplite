@@ -51,7 +51,10 @@ to opt into protocol-native content, structured output, or result metadata.
 Character values are returned as literal text, character vectors are joined
 with newlines, and other JSON-serializable R values are encoded as JSON.
 Pre-serialized JSON strings remain text, and bare lists are ordinary values,
-not MCP result objects.
+not MCP result objects. Ordinary \code{NULL} returns the text \code{"{}"}. To choose
+JSON mappings for noncharacter values, see "Payload JSON options" in
+\code{\link[=tool_result]{tool_result()}}. Configure options before constructing results and starting
+the server; they do not affect schemas, protocol fields, or metadata.
 
 \code{arguments} accepts either the existing named list of property helpers or one
 complete object-root schema from \code{type_from_schema()}. Complete schemas must

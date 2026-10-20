@@ -32,6 +32,21 @@ to_json <- function(x) {
   toJSON(x, auto_unbox = TRUE, null = "null")
 }
 
+to_payload_json <- function(x) {
+  args <- list(
+    x = x,
+    auto_unbox = getOption("mcplite.json.auto_unbox", TRUE),
+    null = getOption("mcplite.json.null", "null")
+  )
+  # Omission preserves class-specific defaults; explicit na = NULL does not.
+  na <- getOption("mcplite.json.na")
+  if (!is.null(na)) {
+    args$na <- na
+  }
+
+  do.call(toJSON, args)
+}
+
 is_scalar_character <- function(x) {
   is.character(x) && length(x) == 1L && !is.na(x)
 }

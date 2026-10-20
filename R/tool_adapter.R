@@ -384,7 +384,7 @@ tool_value_to_text <- function(value) {
   }
 
   tryCatch(
-    to_json(value),
+    to_payload_json(value),
     error = function(cnd) {
       stop(
         sprintf(
@@ -502,7 +502,7 @@ tool_result_as_mcp <- function(result, context) {
   emit_structured_content <- !is.null(result$structured_content) &&
     (identical(projection, "any-json-value") ||
       (identical(projection, "object-value") &&
-        startsWith(to_json(result$structured_content), "{")))
+        startsWith(to_payload_json(result$structured_content), "{")))
   if (emit_structured_content) {
     # Single-bracket replacement preserves zero-length object/array values.
     out["structuredContent"] <- list(result$structured_content)
@@ -514,8 +514,23 @@ tool_result_as_mcp <- function(result, context) {
 
   # Force serialization while the tools/call error boundary can still convert
   # failures into a normal MCP tool-call error result.
-  to_json(out)
+  tool_result_to_json(out)
   out
+}
+
+tool_result_to_json <- function(result) {
+  # Only structuredContent uses author-selected mappings. Each member of this
+  # fresh, shallow list is serializer output, never an incoming JSON fragment.
+  fragments <- lapply(names(result), function(name) {
+    if (identical(name, "structuredContent")) {
+      to_payload_json(result[[name]])
+    } else {
+      to_json(result[[name]])
+    }
+  })
+  names(fragments) <- names(result)
+
+  toJSON(fragments, auto_unbox = TRUE, null = "null", json_verbatim = TRUE)
 }
 
 as_tool_call_response <- function(id, result, context) {
