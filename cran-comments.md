@@ -1,42 +1,29 @@
 ## Submission
 
-This is the first submission of mcplite, current as of July 23, 2026.
+Update from mcplite 0.1.0 to 0.2.0.
 
-## Final local environment
+## Local checks
 
-- Ubuntu 24.04.4 LTS, x86_64-pc-linux-gnu
-- R 4.6.1 (2026-06-24)
+Checked on Ubuntu 24.04.5 LTS, x86_64-pc-linux-gnu, with R 4.6.1.
 
-## Direct test results
+- `devtools::test()`: 1,969 passed; 0 failures, warnings, or skips.
+- `devtools::check(document = FALSE, check_dir = tempdir(), cran = TRUE)`:
+  0 errors, 0 warnings, 0 notes (`--as-cran --no-manual`).
+- Live rairai smoke tests passed after reinstalling the consumer, including
+  both CRAN lookup tools and recovery after an invalid package-root request.
 
-- 672 passed, 0 failed, 0 warnings, and 1 expected skip outside check mode.
+## Pending before submission
 
-## Final R CMD check results
+- Deploy the updated website and rerun `urlchecker::url_check()`: the new
+  writing-tools and returning-results article URLs currently return 404.
+- Review CI results for this release candidate after pushing. Results from the
+  previous release are not validation of this candidate.
 
-A fresh source tarball was checked with `R CMD check --as-cran --timings`.
+## Compatibility
 
-- 0 errors, 0 warnings, 1 note
-- Notes: expected incoming-feasibility note for the maintainer identity and `New submission`
-- Examples: OK
-- PDF manual: OK
-- Source archive: no `.eca` or `AGENTS.md` files
-
-## Release documentation validation
-
-- The public GitHub repository and GitHub Pages site are live.
-- `urlchecker::url_check()` passed all 5 URLs.
-- The final package-name audit found no collision.
-
-## GitHub Actions matrix validation
-
-On 2026-07-23, the clean repository snapshot passed the GitHub Actions matrix:
-
-- macOS latest with R release: passed
-- Windows latest with R release: passed
-- Ubuntu latest with R-devel: passed
-- Air formatting and lint checks: passed
-
-## External validation disposition
-
-Win-builder and R-hub were not used. The maintainer accepted the local and
-GitHub Actions matrix validation as sufficient for this first submission.
+Previously installed consumers that store tool objects constructed by mcplite
+0.1.0 may require reinstallation after upgrading. The maintainer chose to move
+rairai's tool construction to server startup in a separate follow-up rather
+than add old-object compatibility handling to mcplite. The reinstalled rairai
+consumer passes the live smoke tests; the persistent construction change is
+not part of this release.

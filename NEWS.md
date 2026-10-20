@@ -1,4 +1,4 @@
-# mcplite 0.1.0.9000
+# mcplite 0.2.0
 
 * Adds stateless MCP `2026-07-28` support while retaining initialize-based MCP
   `2024-11-05`, `2025-06-18`, and `2025-11-25`. Modern discovery, tool listing,
@@ -14,7 +14,7 @@
   older protocols receive compatible projections and fallback content.
 * Adds payload options `mcplite.json.null`, `mcplite.json.na`, and
   `mcplite.json.auto_unbox`, preserving published defaults and fixed protocol
-  and metadata encoding. See `tool_result()` for configuration details.
+  and metadata encoding. See `help("mcplite-results")` for configuration details.
 * Restores empty structured-root lists as `{}` and removes the unreleased
   scalar-NA coercion in favor of jsonlite's class-specific mappings.
 
