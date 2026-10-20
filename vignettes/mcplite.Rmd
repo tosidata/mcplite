@@ -9,12 +9,8 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
-library(mcplite)
-```
-
-This article shows the complete first-use workflow and the authoring details
-needed for schemas, rich results, protocol compatibility, and safe deployment.
+Connect a local MCP client to an R tool and make a first call. You need R,
+`mcplite`, and a client that can launch a stdio MCP server.
 
 ## 1. Install mcplite
 
@@ -65,7 +61,8 @@ mcp_server(list(inventory_status))
 ```
 
 A tool combines an R function with a client-facing name, description, and
-argument schema.
+argument schema. Schemas describe inputs; they do not validate them. The
+function checks which items it can look up.
 
 `mcp_server()` blocks the R process while it serves requests. Put it at the end
 of a client-launched script, after all tools have been defined or sourced.
@@ -105,246 +102,22 @@ coffee. Success means the result identifies `coffee` with a count of `0`; exact
 presentation varies by client.
 
 The client and server communicate over standard input and output. The server
-exits when standard input closes.
+exits when standard input closes. Keep stdout exclusively for MCP protocol
+traffic: do not write diagnostic output or telemetry there. Use stderr for
+local diagnostics.
 
-## Return ordinary R values
+## Run with appropriate permissions
 
-Ordinary R return values are the simplest default. A character scalar becomes
-literal text, character vectors are joined with newlines, and other
-JSON-serializable values, such as the named list returned by
-`inventory_status`, become JSON in a text content block. Ordinary `NULL` becomes
-the text `"{}"`; an ordinary `list()` becomes `"[]"`. Bare lists are ordinary
-values, not MCP result objects.
-
-For per-tool serialization choices, return your own JSON as ordinary character
-text, for example with `as.character(jsonlite::toJSON(value, na = "null"))`.
-`mcplite` does not parse JSON-looking text or insert it as raw JSON.
-
-## Build structured and rich results
-
-Use `tool_result()` for structured content, explicit MCP content blocks, result
-metadata, or a tool-level error. For example:
-
-```{r structured-result, eval = FALSE}
-tool_result(
-  content = content_text("Found two matches."),
-  structured_content = list(
-    matches = c("tea-green", "tea-black")
-  ),
-  meta = list(source = "local inventory")
-)
-```
-
-If `structured_content` is supplied without `content`, `tool_result()` generates
-one JSON text fallback block. Explicit content is preserved without an extra
-fallback. `NULL` omits structured content; a bare empty list at the structured
-root represents `{}`. Nested unnamed empty lists retain jsonlite's `[]`
-mapping. With default options, these R values have distinct structured-content
-meanings:
-
-| R value | Structured-content meaning |
-|---|---|
-| `list(ok = TRUE)` | JSON object |
-| `c("a", "b")` | JSON array |
-| `"done"` | JSON string scalar, not parsed as JSON |
-| `list()` or `structure(list(), names = character())` | Empty JSON object `{}` |
-| `I(list())` | Explicit empty JSON array `[]` |
-| `NA` or `NA_character_` | JSON `null` |
-| `NA_integer_`, `NA_real_`, or `NA_complex_` | JSON string `"NA"` |
-| `NULL` | No structured-content field |
-
-JSON-looking strings and jsonlite `json` objects supplied as structured content
-remain string values. See `tool_result()` for details of R-to-JSON mappings.
-
-Image, audio, and resource blob constructors accept data that is already
-base64-encoded; they do not read files, download URLs, infer MIME types, or
-encode payloads. Resource links carry an author-supplied URI but do not add a
-resource endpoint to the server.
-
-## Choose payload JSON mappings
-
-Configure these package-global R options near the top of the server script,
-before constructing results and calling `mcp_server()`. Keep them stable while
-the server runs.
-
-| Option | Default | Supported choices |
-|---|---|---|
-| `mcplite.json.null` | `"null"` | `"null"` or `"list"`: encode named payload `NULL` fields as `null` or `{}`; fields remain present |
-| `mcplite.json.na` | Unset | Omit jsonlite's `na` argument, or select `"null"` or `"string"` |
-| `mcplite.json.auto_unbox` | `TRUE` | `TRUE` or `FALSE`: automatically unbox singleton payload vectors or keep them as arrays |
-
-Defaults preserve jsonlite's class-specific missing-value mappings. Selecting
-`na = "null"` also maps `NaN` and infinities to JSON `null` and retains missing
-data-frame fields. Disabling automatic unboxing changes singleton values such
-as `count = 1L` to `[1]`; explicit `I()` and `jsonlite::unbox()` representations
-still apply. This standalone example inspects the generated text without
-starting a server and restores the session's options afterward:
-
-```{r payload-options}
-local({
-  old <- options(mcplite.json.na = "null", mcplite.json.auto_unbox = FALSE)
-  on.exit(options(old))
-  result <- tool_result(structured_content = list(
-    count = 1L,
-    values = c(NA_real_, NaN, Inf, -Inf),
-    rows = data.frame(id = 1L, missing = NA_real_)
-  ))
-  cat(result$content[[1]]$text, "\n")
-})
-```
-
-Remove any option with `NULL`, for example `options(mcplite.json.na = NULL)`,
-to restore its default. Removing that option omits `na` rather than forwarding
-`na = NULL` to jsonlite.
-
-The options affect ordinary noncharacter return-value JSON and structured
-content, including representability checks, generated fallback, and version
-projection. They never change protocol fields, schemas, annotations, or result
-and content metadata. Tool authors remain responsible for conformance with
-advertised output schemas.
-
-## Report tool errors
-
-An error raised by a tool, such as `stop("Unknown item")`, is contained and
-returned to the client as a tool-level error. To report an expected domain
-failure explicitly, return a result with `is_error = TRUE`:
-
-```{r tool-error, eval = FALSE}
-tool_result(
-  content = content_text("The requested item is out of stock."),
-  is_error = TRUE
-)
-```
-
-## Describe input and output schemas
-
-For common inputs, pass a named list of `type_*()` property helpers to
-`arguments`. Incoming JSON arrays reach the tool function as R lists, not atomic
-vectors. Schemas do not coerce or validate argument values or supply R defaults.
-`required = FALSE` permits omission in the advertised schema; give the R
-function a default for an argument that may be omitted.
-
-This tool converts a numeric array with `unlist()` and defaults to a multiplier
-of 1. The returned tool is still an R function, so you can call it directly:
-
-```{r array-inputs}
-sum_numbers <- tool(
-  function(values, multiplier = 1) {
-    sum(unlist(values, use.names = FALSE)) * multiplier
-  },
-  name = "sum_numbers",
-  description = "Sum numeric values and apply an optional multiplier.",
-  arguments = list(
-    values = type_array(type_number()),
-    multiplier = type_number(required = FALSE)
-  )
-)
-sum_numbers(list(2, 3))
-sum_numbers(list(2, 3), multiplier = 2)
-```
-
-`type_ignore()` omits an argument from the advertised schema. It does not reject
-a caller-supplied argument or enforce permissions.
-
-Use `type_from_schema()` when you need a complete input schema. The complete
-schema must have direct root `type = "object"`; JSON Schema 2020-12 keywords such
-as `$schema`, `$defs`, `$ref`, composition, and conditionals are preserved.
-
-This tool uses a complete input schema and advertises an array-shaped structured
-result:
-
-```{r complete-schema, eval = FALSE}
-search_items <- tool(
-  function(query) {
-    matches <- paste(query, c("alpha", "beta"), sep = "-")
-    tool_result(structured_content = matches)
-  },
-  name = "search_items",
-  description = "Find local items whose names start with a query.",
-  arguments = type_from_schema(list(
-    type = "object",
-    properties = list(
-      query = list(type = "string", minLength = 1)
-    ),
-    required = list("query"),
-    additionalProperties = FALSE
-  )),
-  output_schema = type_from_schema(list(
-    type = "array",
-    items = list(type = "string")
-  ))
-)
-```
-
-## Protocol compatibility
-
-`mcplite` supports modern MCP `2026-07-28` and legacy MCP `2024-11-05`,
-`2025-06-18`, and `2025-11-25` with the same server definition. The client
-normally manages the lifecycle, but the distinction is useful when diagnosing a
-connection:
-
-- MCP `2026-07-28` selects the protocol on each request. `server/discover`,
-  `tools/list`, and `tools/call` work without an `initialize` exchange.
-- MCP `2024-11-05`, `2025-06-18`, and `2025-11-25` use an `initialize` exchange
-  before tool operations.
-
-Output schemas are projected according to the client's protocol:
-
-- MCP `2026-07-28` receives supported object, array, scalar, and other schema
-  shapes.
-- MCP `2025-06-18` and `2025-11-25` receive direct object-root output schemas.
-- MCP `2024-11-05` receives tool definitions without output schemas.
-
-A tool is still available when its output schema cannot be represented by the
-client's protocol. `mcplite` checks schema container shape and serializability;
-tool functions own full schema validity, input validation, and output
-conformance.
-
-MCP `2026-07-28` can receive every supported JSON shape. MCP `2025-06-18` and
-`2025-11-25` receive object-shaped structured content. MCP `2024-11-05` receives
-content blocks without a structured-content field. Explicit or generated text
-content therefore gives every supported client a useful representation.
-
-Text, images, embedded resources, annotations, and result metadata work across
-all supported versions. Audio, resource links, and per-content metadata are
-available with MCP `2025-06-18`, `2025-11-25`, and `2026-07-28`. A
-`2024-11-05` call that returns audio or a resource link receives a contained
-tool-level error instead of terminating the server.
-
-## Use ellmer tools
-
-Compatible `ellmer::tool()` definitions can be supplied directly to
-`mcp_server()`. `ellmer` is optional; tools created with `mcplite::tool()` do not
-require it.
-
-## Configure tracing
-
-Tracing requires the optional `otelsdk` package and uses standard `otel` and
-`otelsdk` configuration. To send traces from an existing server script to stderr:
-
-```sh
-OTEL_R_TRACES_EXPORTER=stderr Rscript --vanilla /absolute/path/to/server.R
-```
-
-Never send telemetry to stdout because stdout is reserved for MCP protocol
-traffic. Use stderr or a remote exporter instead. See `mcp_server()` under
-"OpenTelemetry tracing" for configuration and propagation details.
-
-## Server scope
-
-`mcplite` is designed for local, client-launched stdio tool servers. It does not
-provide HTTP transports, prompt or resource endpoints, subscriptions,
-cancellation, sampling, elicitation, roots, Tasks, MCP Apps, or server-initiated
-and other multi-round-trip feature families. Embedded resources and resource
-links are result content, not resource endpoints.
-
-## Trust and safety
-
-Schemas describe inputs and outputs to clients; they are not authorization or
-sandboxing. Each tool function is responsible for domain validation, permission
-checks, credential handling, safe side effects, and appropriate output and
-payload limits. Run the server with only the operating-system and data
+Schemas are not authorization or sandboxing. Each tool is responsible for
+permission checks, credential handling, safe side effects, and appropriate
+output limits. Run the server with only the operating-system and data
 permissions its tools need.
 
-See the reference pages for `tool()`, `tool_result()`, `mcp_server()`, and the
-`content_*()` and `type_*()` helpers for the full API.
+## Next steps
+
+- [Write tools](writing-tools.html) to handle arguments, defaults, arrays, and
+  failures, then describe more complex inputs.
+- [Return results](returning-results.html) to add structured data or rich
+  content to a tool.
+- See `mcp_server()` for server scope, protocol compatibility, and optional
+  OpenTelemetry tracing.

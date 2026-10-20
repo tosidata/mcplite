@@ -5,51 +5,21 @@
 #' constructors; ordinary R values, including bare lists and JSON strings,
 #' retain the single-text-block conversion used by `mcplite::tool()`.
 #'
-#' `NULL` means absent structured content. A bare empty list at the structured
-#' root represents `{}`, as does a named empty list. Nested and ordinary
-#' unnamed empty lists retain jsonlite's `[]` mapping. An ordinary return value
-#' of `NULL` becomes the text `"{}"` instead.
-#'
+#' @section Content and fallback:
 #' When `structured_content` is supplied and `content` is omitted,
 #' `tool_result()` generates exactly one JSON text fallback block. Explicitly
-#' supplied content is preserved as-is and no fallback is appended. MCP
-#' `2026-07-28` results emit every supported JSON value. Retained `2025-06-18`
-#' and `2025-11-25` results emit object values only, and `2024-11-05` omits
-#' structured content. Compatible explicit or generated content remains
-#' available whenever a legacy projection omits `structuredContent`.
+#' supplied content is preserved as-is and no fallback is appended. Keep that
+#' content useful on its own: a client's protocol may omit structured content
+#' or restrict its shape. See [mcp_server()] under "Protocol compatibility".
 #'
-#' Structured R values use the mappings of [jsonlite::toJSON()]. With default
-#' options, logical and character `NA` become JSON `null`; integer, double, and
-#' complex `NA` become the string `"NA"`. Classes, dimensions, and explicit
-#' `I()` or [jsonlite::unbox()] representations retain their jsonlite mappings.
-#' Tool authors are responsible for conformance with any advertised output
-#' schema. `is_error = TRUE` reports a tool-level error while retaining the
-#' normal MCP tool-result envelope.
+#' See [Return-value mappings][mcplite-results] for exact R-to-JSON mappings and
+#' payload options. JSON-looking strings and jsonlite `json` objects remain
+#' string values in `structured_content`; they are not parsed as raw JSON.
+#' Tool authors own conformance with any advertised output schema.
 #'
-#' @section Payload JSON options:
-#' Configure these package-global R options before constructing results and
-#' starting the server, and keep them stable while the server runs:
-#'
-#' * `mcplite.json.null`: `"null"` (default) or `"list"`. Named payload `NULL`
-#'   fields remain present, as JSON `null` or `{}`, respectively.
-#' * `mcplite.json.na`: unset by default, which omits jsonlite's `na` argument
-#'   and preserves its class-specific defaults. Set `"null"` or `"string"` to
-#'   select that jsonlite mapping. `"null"` also maps `NaN` and infinities to
-#'   JSON `null` and retains missing data-frame fields instead of omitting them.
-#' * `mcplite.json.auto_unbox`: `TRUE` (default) or `FALSE`. Setting `FALSE`
-#'   keeps singleton payload vectors as arrays; explicit `I()` and
-#'   `jsonlite::unbox()` representations still apply.
-#'
-#' Remove an option with `NULL`, for example `options(mcplite.json.na = NULL)`,
-#' to restore its default. This omits `na`; it does not forward `na = NULL`.
-#' These options apply to ordinary noncharacter return-value JSON and to
-#' structured content, its representability checks, generated text fallback,
-#' and protocol-version projection. Protocol fields, schemas, annotations,
-#' and all result and content metadata retain fixed encoding.
-#'
-#' For per-tool conversion choices, return your own JSON as ordinary character
-#' text. JSON-looking strings and jsonlite `json` objects are not parsed or
-#' inserted as raw JSON. In `structured_content`, they remain string values.
+#' @section Tool errors:
+#' `is_error = TRUE` reports a tool-level error while retaining the normal MCP
+#' tool-result envelope.
 #'
 #' @param content One content block created by a `content_*()` constructor, or
 #'   an ordered list of such blocks. Omitting `content` permits automatic text
@@ -57,16 +27,16 @@
 #'   suppresses fallback and is invalid.
 #' @param structured_content Optional R value representable as a JSON object,
 #'   array, or scalar. `NULL` means absence; a bare empty list at this root
-#'   represents `{}`. Other values follow jsonlite mappings and the payload
-#'   options below. `mcplite` checks JSON representability but does not validate
+#'   represents `{}`. See [mcplite-results] for other mappings and payload
+#'   options. `mcplite` checks JSON representability but does not validate
 #'   this value against a tool's advertised output schema.
 #' @param is_error Whether the result reports a tool error.
 #' @param meta Optional named result metadata. MCP wire names such as `_meta`
 #'   are created only during serialization.
 #'
 #' @return A protocol-native tool result for return from a tool function.
-#' @seealso [content_text()], [content_image()], [content_audio()],
-#'   [content_resource_link()], and [content_resource()].
+#' @seealso [mcplite-results], [content_text()], [content_image()],
+#'   [content_audio()], [content_resource_link()], and [content_resource()].
 #' @export
 #'
 #' @examples
@@ -80,17 +50,6 @@
 #' )
 #'
 #' tool_result(structured_content = list(ok = TRUE, count = 2L))
-#'
-#' local({
-#'   old <- options(mcplite.json.na = "null", mcplite.json.auto_unbox = FALSE)
-#'   on.exit(options(old))
-#'   result <- tool_result(structured_content = list(
-#'     count = 1L,
-#'     values = c(NA_real_, NaN, Inf, -Inf),
-#'     rows = data.frame(id = 1L, missing = NA_real_)
-#'   ))
-#'   result$content[[1]]$text
-#' })
 tool_result <- function(
   content = list(),
   structured_content = NULL,

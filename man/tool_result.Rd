@@ -19,8 +19,8 @@ suppresses fallback and is invalid.}
 
 \item{structured_content}{Optional R value representable as a JSON object,
 array, or scalar. \code{NULL} means absence; a bare empty list at this root
-represents \code{{}}. Other values follow jsonlite mappings and the payload
-options below. \code{mcplite} checks JSON representability but does not validate
+represents \code{{}}. See \link{mcplite-results} for other mappings and payload
+options. \code{mcplite} checks JSON representability but does not validate
 this value against a tool's advertised output schema.}
 
 \item{is_error}{Whether the result reports a tool error.}
@@ -37,54 +37,24 @@ MCP results. Its \code{content} must be created with one of the \verb{content_*(
 constructors; ordinary R values, including bare lists and JSON strings,
 retain the single-text-block conversion used by \code{mcplite::tool()}.
 }
-\details{
-\code{NULL} means absent structured content. A bare empty list at the structured
-root represents \code{{}}, as does a named empty list. Nested and ordinary
-unnamed empty lists retain jsonlite's \verb{[]} mapping. An ordinary return value
-of \code{NULL} becomes the text \code{"{}"} instead.
+\section{Content and fallback}{
 
 When \code{structured_content} is supplied and \code{content} is omitted,
 \code{tool_result()} generates exactly one JSON text fallback block. Explicitly
-supplied content is preserved as-is and no fallback is appended. MCP
-\code{2026-07-28} results emit every supported JSON value. Retained \code{2025-06-18}
-and \code{2025-11-25} results emit object values only, and \code{2024-11-05} omits
-structured content. Compatible explicit or generated content remains
-available whenever a legacy projection omits \code{structuredContent}.
+supplied content is preserved as-is and no fallback is appended. Keep that
+content useful on its own: a client's protocol may omit structured content
+or restrict its shape. See \code{\link[=mcp_server]{mcp_server()}} under "Protocol compatibility".
 
-Structured R values use the mappings of \code{\link[jsonlite:toJSON]{jsonlite::toJSON()}}. With default
-options, logical and character \code{NA} become JSON \code{null}; integer, double, and
-complex \code{NA} become the string \code{"NA"}. Classes, dimensions, and explicit
-\code{I()} or \code{\link[jsonlite:unbox]{jsonlite::unbox()}} representations retain their jsonlite mappings.
-Tool authors are responsible for conformance with any advertised output
-schema. \code{is_error = TRUE} reports a tool-level error while retaining the
-normal MCP tool-result envelope.
-}
-\section{Payload JSON options}{
-
-Configure these package-global R options before constructing results and
-starting the server, and keep them stable while the server runs:
-\itemize{
-\item \code{mcplite.json.null}: \code{"null"} (default) or \code{"list"}. Named payload \code{NULL}
-fields remain present, as JSON \code{null} or \code{{}}, respectively.
-\item \code{mcplite.json.na}: unset by default, which omits jsonlite's \code{na} argument
-and preserves its class-specific defaults. Set \code{"null"} or \code{"string"} to
-select that jsonlite mapping. \code{"null"} also maps \code{NaN} and infinities to
-JSON \code{null} and retains missing data-frame fields instead of omitting them.
-\item \code{mcplite.json.auto_unbox}: \code{TRUE} (default) or \code{FALSE}. Setting \code{FALSE}
-keeps singleton payload vectors as arrays; explicit \code{I()} and
-\code{jsonlite::unbox()} representations still apply.
+See \link[=mcplite-results]{Return-value mappings} for exact R-to-JSON mappings and
+payload options. JSON-looking strings and jsonlite \code{json} objects remain
+string values in \code{structured_content}; they are not parsed as raw JSON.
+Tool authors own conformance with any advertised output schema.
 }
 
-Remove an option with \code{NULL}, for example \code{options(mcplite.json.na = NULL)},
-to restore its default. This omits \code{na}; it does not forward \code{na = NULL}.
-These options apply to ordinary noncharacter return-value JSON and to
-structured content, its representability checks, generated text fallback,
-and protocol-version projection. Protocol fields, schemas, annotations,
-and all result and content metadata retain fixed encoding.
+\section{Tool errors}{
 
-For per-tool conversion choices, return your own JSON as ordinary character
-text. JSON-looking strings and jsonlite \code{json} objects are not parsed or
-inserted as raw JSON. In \code{structured_content}, they remain string values.
+\code{is_error = TRUE} reports a tool-level error while retaining the normal MCP
+tool-result envelope.
 }
 
 \examples{
@@ -98,19 +68,8 @@ tool_result(
 )
 
 tool_result(structured_content = list(ok = TRUE, count = 2L))
-
-local({
-  old <- options(mcplite.json.na = "null", mcplite.json.auto_unbox = FALSE)
-  on.exit(options(old))
-  result <- tool_result(structured_content = list(
-    count = 1L,
-    values = c(NA_real_, NaN, Inf, -Inf),
-    rows = data.frame(id = 1L, missing = NA_real_)
-  ))
-  result$content[[1]]$text
-})
 }
 \seealso{
-\code{\link[=content_text]{content_text()}}, \code{\link[=content_image]{content_image()}}, \code{\link[=content_audio]{content_audio()}},
-\code{\link[=content_resource_link]{content_resource_link()}}, and \code{\link[=content_resource]{content_resource()}}.
+\link{mcplite-results}, \code{\link[=content_text]{content_text()}}, \code{\link[=content_image]{content_image()}},
+\code{\link[=content_audio]{content_audio()}}, \code{\link[=content_resource_link]{content_resource_link()}}, and \code{\link[=content_resource]{content_resource()}}.
 }

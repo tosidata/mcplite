@@ -89,11 +89,16 @@ links in their results.
 
 ## Learn more
 
-The [getting-started article](https://tosidata.github.io/mcplite/articles/mcplite.html)
-covers complete JSON schemas, rich and structured results, version-specific
-authoring behavior, `ellmer` interoperability, tracing, and safety.
+Choose the next task:
 
-See `?tool` and `help("tool-types", package = "mcplite")` for tool definitions
-and schemas, `?tool_result` and
-`help("content-blocks", package = "mcplite")` for rich results, and
-`?mcp_server` for server behavior.
+- [Get started](https://tosidata.github.io/mcplite/articles/mcplite.html): save a
+  server script, connect a client, and make a first call.
+- [Write tools](https://tosidata.github.io/mcplite/articles/writing-tools.html):
+  describe arguments, handle defaults and arrays, and report failures.
+- [Return results](https://tosidata.github.io/mcplite/articles/returning-results.html):
+  choose ordinary values, structured content, or rich content blocks.
+
+For installed help, start with `?mcplite`. See `?tool` and
+`help("tool-types", package = "mcplite")` for definitions and schemas,
+`help("mcplite-results", package = "mcplite")` for exact return-value mappings
+and payload options, and `?mcp_server` for server use, compatibility, and tracing.

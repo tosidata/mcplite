@@ -32,10 +32,9 @@ use 1 to 128 characters from letters, digits, underscore, dot, and hyphen.}
 \item{annotations}{Optional named list of MCP tool annotations to advertise.}
 
 \item{output_schema}{Optional output schema created by a supported \verb{type_*()}
-helper. Raw schema lists must be wrapped with \code{\link[=type_from_schema]{type_from_schema()}}. Modern
-clients receive every supported schema shape; retained legacy clients
-receive only compatible object-root projections. Tool authors remain
-responsible for schema validity and result conformance.}
+helper. Raw schema lists must be wrapped with \code{\link[=type_from_schema]{type_from_schema()}}. See
+"Complete schemas and structured output" for author responsibilities and
+protocol compatibility.}
 }
 \value{
 The supplied function with MCP metadata attached. It remains directly
@@ -47,33 +46,38 @@ supplied directly, or in a list, to \code{\link[=mcp_server]{mcp_server()}}. Ord
 values use the default single-text-block conversion; return \code{\link[=tool_result]{tool_result()}}
 to opt into protocol-native content, structured output, or result metadata.
 }
-\details{
-Character values are returned as literal text, character vectors are joined
-with newlines, and other JSON-serializable R values are encoded as JSON.
-Pre-serialized JSON strings remain text, and bare lists are ordinary values,
-not MCP result objects. Ordinary \code{NULL} returns the text \code{"{}"}. To choose
-JSON mappings for noncharacter values, see "Payload JSON options" in
-\code{\link[=tool_result]{tool_result()}}. Configure options before constructing results and starting
-the server; they do not affect schemas, protocol fields, or metadata.
-
-\code{arguments} accepts either the existing named list of property helpers or one
-complete object-root schema from \code{type_from_schema()}. Complete schemas must
-have direct root \code{type = "object"}; JSON Schema 2020-12 keywords such as
-\verb{$schema}, \verb{$defs}, \verb{$ref}, composition, and conditionals are preserved.
+\section{Arguments and defaults}{
 
 Incoming JSON arrays reach \code{fun} as R lists, not atomic vectors. Schemas do
 not coerce or validate argument values or supply R defaults. Marking a
 property \code{required = FALSE} permits omission in the advertised schema; the
 R function must provide its own default for calls that omit that argument.
-
-An \code{output_schema} advertises the expected \code{structured_content} shape. Modern
-MCP \code{2026-07-28} clients receive every supported schema shape. Retained
-\code{2025-06-18} and \code{2025-11-25} clients receive direct object-root output
-schemas, while incompatible non-object schemas and all \code{2024-11-05} output
-schemas are omitted. \code{mcplite} checks schema container shape and
-serializability. It does not check full schema validity or runtime
-input/output conformance; tool authors own those guarantees.
 }
+
+\section{Return values}{
+
+Ordinary character values become literal text, not parsed JSON. Bare lists
+are ordinary values, not MCP result objects. See
+\link[=mcplite-results]{Return-value mappings} for exact conversions, empty and
+missing values, and payload JSON options. Configure those options before
+constructing results and starting the server.
+}
+
+\section{Complete schemas and structured output}{
+
+\code{arguments} also accepts one complete object-root schema from
+\code{\link[=type_from_schema]{type_from_schema()}}. Complete input schemas must have direct root
+\code{type = "object"}; JSON Schema 2020-12 keywords such as \verb{$schema}, \verb{$defs},
+\verb{$ref}, composition, and conditionals are preserved.
+
+An \code{output_schema} advertises the expected \code{structured_content} shape. A
+client's protocol can omit an incompatible output schema without removing
+the tool; see \code{\link[=mcp_server]{mcp_server()}} under "Protocol compatibility" for the exact
+version rules. \code{mcplite} checks schema container shape and serializability,
+not full schema validity or runtime input/output conformance. Tool authors
+own those guarantees.
+}
+
 \examples{
 add_numbers <- tool(
   function(x, y) {

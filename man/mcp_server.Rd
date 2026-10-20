@@ -26,43 +26,68 @@ MCP clients can discover and call R functions. Compatible \code{ellmer::tool()}
 objects can also be supplied when users already use ellmer, but ellmer is not
 required for ordinary mcplite tools.
 }
-\details{
-\code{mcplite} is a tools-only, stdio-only server. It supports stateless MCP
-\code{2026-07-28}, where clients select the protocol with per-request metadata.
-Modern \code{server/discover}, \code{tools/list}, and \code{tools/call} requests do not
-require \code{initialize}. Discovery advertises \code{2026-07-28}, \code{2025-11-25},
-\code{2025-06-18}, and \code{2024-11-05} in that preference order.
+\section{Run a server}{
 
-Every successful modern result includes \code{resultType = "complete"} and the
-server's canonical identity in
-\verb{_meta["io.modelcontextprotocol/serverInfo"]}.
-Modern \code{server/discover} and \code{tools/list} results also include public cache
-hints with a 300000 millisecond
-TTL. Modern \code{ping} is unsupported.
+Supply one tool or a list of tools directly. Put the complete setup in a
+script that defines or sources tools and ends with
+\code{mcplite::mcp_server(actual_tool_or_list)}. Configure the MCP client to launch
+it with \code{Rscript --vanilla /absolute/path/to/server.R}; use an absolute script
+path because the client's working directory is not guaranteed. The call
+blocks until standard input closes, so use a client-launched script rather
+than an interactive R console.
 
-Retained MCP \code{2024-11-05}, \code{2025-06-18}, and \code{2025-11-25} clients use the
-\code{initialize} lifecycle and retain \code{ping}, \code{tools/list}, and \code{tools/call}.
 Tools may return ordinary R values for text conversion or opt into native
-content and structured output with \code{\link[=tool_result]{tool_result()}}. Modern clients receive
-every supported schema and structured-content shape. Legacy \code{2025-06-18}
-and \code{2025-11-25} clients receive object-shaped output schemas and structured
-content; compatible content fallback remains available for omitted fields.
-Text, images, embedded resources, annotations, and result metadata work in
-every supported version. Audio, resource links, and per-content metadata work
-for modern clients and retained \code{2025-06-18} and \code{2025-11-25} clients.
+content and structured output with \code{\link[=tool_result]{tool_result()}}. See \link{mcplite-results}
+for exact mappings and payload JSON options. Set those options before
+constructing results and starting the server, and keep them stable while it
+runs. Tools own input validation, output conformance, permissions, and safe
+side effects; schemas are not authorization or sandboxing.
 
-The server does not implement JSON-RPC batching, HTTP transports, sessions,
-prompts, resource listing or reading, subscriptions, cancellation, sampling,
-elicitation, roots, Tasks, MCP Apps, progress notifications, or
-server-initiated and other multi-round-trip requests. Embedded resource
-blocks are self-contained, and resource links do not make their URIs
-readable through \code{mcplite}.
-
-Supply tool definitions directly. For client-launched workflows, put the
-complete server setup in a script that defines or sources tools and ends with
-\code{mcplite::mcp_server(actual_tool_or_list)}, then launch that script with
-\code{Rscript --vanilla /absolute/path/to/server.R}.
+\strong{Keep stdout exclusively for MCP protocol messages.} Send diagnostics and
+telemetry to stderr or a remote exporter, not stdout.
 }
+
+\section{Server scope}{
+
+\code{mcplite} is a tools-only, stdio-only server. It does not implement JSON-RPC
+batching, HTTP transports, sessions, prompts, resource listing or reading,
+subscriptions, cancellation, sampling, elicitation, roots, Tasks, MCP Apps,
+progress notifications, or server-initiated and other multi-round-trip
+requests. Embedded resource blocks are self-contained, and resource links
+do not make their URIs readable through \code{mcplite}.
+}
+
+\section{Protocol compatibility}{
+
+The same server definition supports four MCP versions. A tool remains
+available when its output schema cannot be represented by the client's
+protocol. Compatible explicit or generated text content remains available
+when structured content is omitted. Tool authors still own full schema
+validity and runtime input/output conformance.\tabular{lllll}{
+   MCP version \tab Lifecycle \tab Output schemas \tab Structured content \tab Audio, resource links, per-content metadata \cr
+   \code{2026-07-28} \tab Protocol selected per request \tab Every supported shape \tab Every supported JSON value \tab Supported \cr
+   \code{2025-11-25} \tab \code{initialize} first \tab Direct object-root only \tab Object values only \tab Supported \cr
+   \code{2025-06-18} \tab \code{initialize} first \tab Direct object-root only \tab Object values only \tab Supported \cr
+   \code{2024-11-05} \tab \code{initialize} first \tab Omitted \tab Omitted \tab Unsupported \cr
+}
+
+
+Text, images, embedded resources, annotations, and result metadata work in
+every supported version. A \code{2024-11-05} call returning audio or a resource
+link receives a contained tool-level error instead of partial content or
+server termination.
+
+Modern \code{2026-07-28} clients select the protocol with per-request metadata.
+\code{server/discover}, \code{tools/list}, and \code{tools/call} do not require \code{initialize}.
+Discovery advertises \code{2026-07-28}, \code{2025-11-25}, \code{2025-06-18}, and
+\code{2024-11-05} in that preference order. Every successful modern result
+includes \code{resultType = "complete"} and the server's canonical identity in
+\verb{_meta["io.modelcontextprotocol/serverInfo"]}. Modern \code{server/discover} and
+\code{tools/list} results also include public cache hints with a 300000 millisecond
+TTL. Modern \code{ping} is unsupported. Legacy clients retain \code{ping}, \code{tools/list},
+and \code{tools/call} after initialization.
+}
+
 \section{OpenTelemetry tracing}{
 
 \code{mcplite} automatically creates one OpenTelemetry server span for every

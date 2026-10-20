@@ -2,4 +2,42 @@ url: https://tosidata.github.io/mcplite/
 destination: pkgdown-site
 template:
   bootstrap: 5
-
+navbar:
+  structure:
+    left: [intro, articles, reference, news]
+    right: [search, github]
+  components:
+    intro:
+      text: Get started
+      href: articles/mcplite.html
+    articles:
+      text: Guides
+      menu:
+      - text: Write tools
+        href: articles/writing-tools.html
+      - text: Return results
+        href: articles/returning-results.html
+articles:
+- title: Use mcplite
+  navbar: ~
+  contents:
+  - mcplite
+  - writing-tools
+  - returning-results
+reference:
+- title: Connect a client
+  desc: Package orientation and server setup.
+  contents:
+  - mcplite
+  - mcp_server
+- title: Write tools
+  desc: Describe functions and their input and output schemas.
+  contents:
+  - tool
+  - tool-types
+- title: Return results
+  desc: Construct results and look up exact serialization rules.
+  contents:
+  - tool_result
+  - content-blocks
+  - mcplite-results

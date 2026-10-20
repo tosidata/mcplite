@@ -11,3 +11,5 @@
 ^pkgdown-site$
 ^pkgdown$
 ^vignettes/mcplite\.Rmd$
+^vignettes/writing-tools\.Rmd$
+^vignettes/returning-results\.Rmd$

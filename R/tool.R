@@ -5,31 +5,31 @@
 #' values use the default single-text-block conversion; return [tool_result()]
 #' to opt into protocol-native content, structured output, or result metadata.
 #'
-#' Character values are returned as literal text, character vectors are joined
-#' with newlines, and other JSON-serializable R values are encoded as JSON.
-#' Pre-serialized JSON strings remain text, and bare lists are ordinary values,
-#' not MCP result objects. Ordinary `NULL` returns the text `"{}"`. To choose
-#' JSON mappings for noncharacter values, see "Payload JSON options" in
-#' [tool_result()]. Configure options before constructing results and starting
-#' the server; they do not affect schemas, protocol fields, or metadata.
-#'
-#' `arguments` accepts either the existing named list of property helpers or one
-#' complete object-root schema from `type_from_schema()`. Complete schemas must
-#' have direct root `type = "object"`; JSON Schema 2020-12 keywords such as
-#' `$schema`, `$defs`, `$ref`, composition, and conditionals are preserved.
-#'
+#' @section Arguments and defaults:
 #' Incoming JSON arrays reach `fun` as R lists, not atomic vectors. Schemas do
 #' not coerce or validate argument values or supply R defaults. Marking a
 #' property `required = FALSE` permits omission in the advertised schema; the
 #' R function must provide its own default for calls that omit that argument.
 #'
-#' An `output_schema` advertises the expected `structured_content` shape. Modern
-#' MCP `2026-07-28` clients receive every supported schema shape. Retained
-#' `2025-06-18` and `2025-11-25` clients receive direct object-root output
-#' schemas, while incompatible non-object schemas and all `2024-11-05` output
-#' schemas are omitted. `mcplite` checks schema container shape and
-#' serializability. It does not check full schema validity or runtime
-#' input/output conformance; tool authors own those guarantees.
+#' @section Return values:
+#' Ordinary character values become literal text, not parsed JSON. Bare lists
+#' are ordinary values, not MCP result objects. See
+#' [Return-value mappings][mcplite-results] for exact conversions, empty and
+#' missing values, and payload JSON options. Configure those options before
+#' constructing results and starting the server.
+#'
+#' @section Complete schemas and structured output:
+#' `arguments` also accepts one complete object-root schema from
+#' [type_from_schema()]. Complete input schemas must have direct root
+#' `type = "object"`; JSON Schema 2020-12 keywords such as `$schema`, `$defs`,
+#' `$ref`, composition, and conditionals are preserved.
+#'
+#' An `output_schema` advertises the expected `structured_content` shape. A
+#' client's protocol can omit an incompatible output schema without removing
+#' the tool; see [mcp_server()] under "Protocol compatibility" for the exact
+#' version rules. `mcplite` checks schema container shape and serializability,
+#' not full schema validity or runtime input/output conformance. Tool authors
+#' own those guarantees.
 #'
 #' @param fun Function to expose as a tool.
 #' @param description A single string describing when and how to use the tool.
@@ -42,10 +42,9 @@
 #'   use 1 to 128 characters from letters, digits, underscore, dot, and hyphen.
 #' @param annotations Optional named list of MCP tool annotations to advertise.
 #' @param output_schema Optional output schema created by a supported `type_*()`
-#'   helper. Raw schema lists must be wrapped with [type_from_schema()]. Modern
-#'   clients receive every supported schema shape; retained legacy clients
-#'   receive only compatible object-root projections. Tool authors remain
-#'   responsible for schema validity and result conformance.
+#'   helper. Raw schema lists must be wrapped with [type_from_schema()]. See
+#'   "Complete schemas and structured output" for author responsibilities and
+#'   protocol compatibility.
 #'
 #' @return The supplied function with MCP metadata attached. It remains directly
 #'   callable as an R function and can be supplied to [mcp_server()].
