@@ -7,17 +7,34 @@
 #' objects can also be supplied when users already use ellmer, but ellmer is not
 #' required for ordinary mcplite tools.
 #'
-#' `mcplite` supports the lifecycle, ping, `tools/list`, and `tools/call` subset
-#' for protocol versions `2024-11-05`, `2025-06-18`, and `2025-11-25`. Tools
-#' may return ordinary R values for legacy text conversion or opt into native
-#' content and structured output with [tool_result()]. Structured output,
-#' output schemas, audio, resource links, and per-content metadata require MCP
-#' `2025-06-18` or later. Text, images, embedded resources, annotations, and
-#' result metadata also work with `2024-11-05`.
+#' `mcplite` is a tools-only, stdio-only server. It supports stateless MCP
+#' `2026-07-28`, where clients select the protocol with per-request metadata.
+#' Modern `server/discover`, `tools/list`, and `tools/call` requests do not
+#' require `initialize`. Discovery advertises `2026-07-28`, `2025-11-25`,
+#' `2025-06-18`, and `2024-11-05` in that preference order.
+#'
+#' Every successful modern result includes `resultType = "complete"` and the
+#' server's canonical identity in
+#' `_meta["io.modelcontextprotocol/serverInfo"]`.
+#' Modern `server/discover` and `tools/list` results also include public cache
+#' hints with a 300000 millisecond
+#' TTL. Modern `ping` is unsupported.
+#'
+#' Retained MCP `2024-11-05`, `2025-06-18`, and `2025-11-25` clients use the
+#' `initialize` lifecycle and retain `ping`, `tools/list`, and `tools/call`.
+#' Tools may return ordinary R values for text conversion or opt into native
+#' content and structured output with [tool_result()]. Modern clients receive
+#' every supported schema and structured-content shape. Legacy `2025-06-18`
+#' and `2025-11-25` clients receive object-shaped output schemas and structured
+#' content; compatible content fallback remains available for omitted fields.
+#' Text, images, embedded resources, annotations, and result metadata work in
+#' every supported version. Audio, resource links, and per-content metadata work
+#' for modern clients and retained `2025-06-18` and `2025-11-25` clients.
 #'
 #' The server does not implement JSON-RPC batching, HTTP transports, sessions,
-#' prompts, resource listing or reading, sampling, elicitation, roots, tasks,
-#' progress notifications, or server-initiated requests. Embedded resource
+#' prompts, resource listing or reading, subscriptions, cancellation, sampling,
+#' elicitation, roots, Tasks, MCP Apps, progress notifications, or
+#' server-initiated and other multi-round-trip requests. Embedded resource
 #' blocks are self-contained, and resource links do not make their URIs
 #' readable through `mcplite`.
 #'
@@ -29,9 +46,10 @@
 #' @section OpenTelemetry tracing:
 #' `mcplite` automatically creates one OpenTelemetry server span for every
 #' parsed MCP request or notification that passes JSON-RPC envelope validation.
-#' This includes initialization and notifications, ping, tool discovery and
-#' calls, and valid unknown methods. Blank input, JSON parse failures, and
-#' malformed JSON-RPC envelopes do not create MCP operation spans.
+#' This includes retained legacy initialization and ping, notifications, modern
+#' discovery, tool listing and calls, and valid unknown methods. Blank input,
+#' JSON parse failures, and malformed JSON-RPC envelopes do not create MCP
+#' operation spans.
 #'
 #' Tool authors do not need to call `otel::start_local_active_span()` for the
 #' MCP operation or tool invocation. The server span remains active while tool
@@ -61,8 +79,8 @@
 #' @param tools Tool definitions to expose. Supply one `mcplite::tool()` object
 #'   or a list of tool definitions. Compatible `ellmer::tool()` objects are
 #'   accepted when supplied directly.
-#' @param instructions Optional server instructions to advertise to clients that
-#'   negotiate a protocol version that supports them.
+#' @param instructions Optional server instructions to advertise to clients
+#'   using a protocol version that supports them.
 #'
 #' @return `mcp_server()` is called for its side effect of serving MCP requests.
 #'   It blocks the current R process until standard input closes.

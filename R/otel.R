@@ -6,10 +6,10 @@ start_mcp_server_span <- function(
     return(NULL)
   }
 
-  method <- message$method
-  params <- message$params
+  method <- message[["method"]]
+  params <- message[["params"]]
   span_name <- method
-  tool_name <- if (is.list(params)) params$name
+  tool_name <- if (is.list(params)) params[["name"]]
 
   attributes <- list(
     "mcp.method.name" = method,
@@ -24,8 +24,8 @@ start_mcp_server_span <- function(
     }
   }
 
-  if (!is.null(message$id)) {
-    attributes[["jsonrpc.request.id"]] <- as.character(message$id)
+  if (message_has_id(message)) {
+    attributes[["jsonrpc.request.id"]] <- as.character(message[["id"]])
   }
 
   options <- list(kind = "server")
@@ -60,12 +60,12 @@ start_mcp_server_span <- function(
   )
 }
 
-record_mcp_server_span_outcome <- function(span, response, state) {
+record_mcp_server_span_outcome <- function(span, response, context) {
   if (is.null(span) || !isTRUE(span$is_recording())) {
     return(invisible(NULL))
   }
 
-  protocol_version <- state$protocol_version
+  protocol_version <- context$telemetry_protocol_version
   if (
     is.character(protocol_version) &&
       length(protocol_version) == 1L &&

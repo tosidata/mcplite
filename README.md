@@ -5,14 +5,10 @@
 [![CRAN status](https://www.r-pkg.org/badges/version/mcplite)](https://CRAN.R-project.org/package=mcplite)
 <!-- badges: end -->
 
-`mcplite` lets you expose R functions as [Model Context Protocol](https://modelcontextprotocol.io/)
-(MCP) tools. It runs a small server over standard input and output, which is the
-transport most desktop MCP clients use to launch local tool servers.
-
-Documentation is available at <https://tosidata.github.io/mcplite/>.
-
-Use it when you want an MCP client to call R code such as data lookups,
-calculations, report helpers, or local automation.
+`mcplite` exposes R functions as [Model Context Protocol](https://modelcontextprotocol.io/)
+(MCP) tools through a lightweight standard-input/standard-output (stdio)
+server. Use it when a local MCP client needs to call R code for data lookups,
+calculations, report helpers, or automation.
 
 ## Installation
 
@@ -76,32 +72,28 @@ ask it to run `add_numbers` with `x = 2` and `y = 3`; the result should be `5`.
 `mcp_server()` starts serving immediately and runs until standard input closes,
 so launch it through the MCP client rather than from an interactive R console.
 
-## Results
+## Supported scope
 
-For most tools, return an ordinary R value. Character values become text, while
-other JSON-serializable values are returned as JSON in a text content block.
-Bare lists are ordinary results, not MCP result objects.
+`mcplite` is a tools-only, stdio-only MCP server. It supports modern MCP
+`2026-07-28` and legacy MCP `2024-11-05`, `2025-06-18`, and `2025-11-25`. The
+same server definition works with modern and legacy clients.
 
-Use `tool_result()` when a tool needs rich content blocks or structured results.
-See `?tool_result` for the result formats and compatibility details.
+Tools can return ordinary R values, rich MCP content, structured results, and
+tool-level errors. Compatible `ellmer::tool()` definitions can also be supplied
+directly.
 
-## Scope
+The package focuses on local, client-launched tools. It does not provide an HTTP
+transport, prompt or resource endpoints, or multi-round-trip MCP feature
+families. Tools can still include supported embedded resources and resource
+links in their results.
 
-`mcplite` supports local, client-launched stdio tool servers. It does not
-implement HTTP transport or the MCP prompts, resources, and sampling
-capabilities. Tools can still return supported content blocks; content blocks
-are tool results, not implementations of those MCP capabilities.
+## Learn more
 
-## ellmer interoperability
+The [getting-started article](https://tosidata.github.io/mcplite/articles/mcplite.html)
+covers complete JSON schemas, rich and structured results, version-specific
+authoring behavior, `ellmer` interoperability, tracing, and safety.
 
-Compatible `ellmer::tool()` definitions can be passed directly to
-`mcp_server()`. `ellmer` is optional and is not needed for tools defined with
-`mcplite`.
-
-## Function reference
-
-See `?tool` for tool definitions, `help("tool-types", package = "mcplite")` for
-schema helpers, `?tool_result` and
+See `?tool` and `help("tool-types", package = "mcplite")` for tool definitions
+and schemas, `?tool_result` and
 `help("content-blocks", package = "mcplite")` for rich results, and
-`?mcp_server` for server behavior, scope, lifecycle, interoperability, and
-tracing details.
+`?mcp_server` for server behavior.

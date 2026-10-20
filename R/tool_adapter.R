@@ -26,12 +26,17 @@ tool_definition_description <- function(tool) {
   attr(tool, "description")
 }
 
-tool_definition_arguments <- function(tool) {
+tool_definition_input_schema <- function(tool) {
   if (is_local_tool_definition(tool)) {
-    return(attr(tool, "mcplite_tool")$arguments)
+    return(attr(tool, "mcplite_tool")$input_schema)
   }
 
-  attr(tool, "arguments")
+  arguments <- attr(tool, "arguments")
+  if (inherits(arguments, "ellmer::TypeObject")) {
+    return(schema_from_tool_type(arguments))
+  }
+
+  schema_from_properties(arguments)
 }
 
 tool_definition_annotations <- function(tool) {
@@ -50,21 +55,45 @@ tool_definition_output_schema <- function(tool) {
   NULL
 }
 
-input_schema_from_tool <- function(tool) {
-  arguments <- tool_definition_arguments(tool)
-
-  if (inherits(arguments, "ellmer::TypeObject")) {
-    return(schema_from_tool_type(arguments))
+project_legacy_properties <- function(schema, context) {
+  if (!identical(context$era, "legacy")) {
+    return(schema)
   }
 
-  schema_from_properties(arguments)
+  # Only direct boolean properties need legacy object-schema equivalents.
+  for (property_name in names(schema[["properties"]])) {
+    property <- schema[["properties"]][[property_name]]
+    if (identical(property, TRUE)) {
+      schema[["properties"]][[property_name]] <- named_list()
+    } else if (identical(property, FALSE)) {
+      schema[["properties"]][[property_name]] <- list(not = named_list())
+    }
+  }
+  schema
 }
 
-tool_as_mcp_definition <- function(tool, protocol_version) {
+input_schema_from_tool <- function(tool, context) {
+  schema <- tool_definition_input_schema(tool)
+  projection <- input_schema_projection_policy(context)
+
+  if (
+    identical(projection, "object-root") &&
+      !identical(schema[["type"]], "object")
+  ) {
+    stop(
+      "Tool input schemas must have direct root `type = \"object\"`.",
+      call. = FALSE
+    )
+  }
+
+  project_legacy_properties(schema, context)
+}
+
+tool_as_mcp_definition <- function(tool, context) {
   out <- list(
     name = tool_definition_name(tool),
     description = tool_definition_description(tool),
-    inputSchema = input_schema_from_tool(tool)
+    inputSchema = input_schema_from_tool(tool, context)
   )
 
   annotations <- tool_definition_annotations(tool)
@@ -73,11 +102,13 @@ tool_as_mcp_definition <- function(tool, protocol_version) {
   }
 
   output_schema <- tool_definition_output_schema(tool)
-  if (
-    protocol_version_gte(protocol_version, "2025-06-18") &&
-      !is.null(output_schema)
-  ) {
-    out$outputSchema <- output_schema
+  projection <- output_schema_projection_policy(context)
+  emit_output_schema <- !is.null(output_schema) &&
+    (identical(projection, "any-json-schema") ||
+      (identical(projection, "object-root") &&
+        identical(output_schema[["type"]], "object")))
+  if (emit_output_schema) {
+    out$outputSchema <- project_legacy_properties(output_schema, context)
   }
 
   out
@@ -366,27 +397,32 @@ tool_value_to_text <- function(value) {
   )
 }
 
-protocol_supports_content_type <- function(protocol_version, type) {
-  protocol_version_gte(protocol_version, "2025-06-18") ||
+context_supports_rich_content_fields <- function(context) {
+  identical(context$era, "modern") ||
+    protocol_version_gte(context$protocol_version, "2025-06-18")
+}
+
+protocol_supports_content_type <- function(context, type) {
+  context_supports_rich_content_fields(context) ||
     type %in% c("text", "image", "resource")
 }
 
-annotations_as_mcp <- function(annotations, protocol_version) {
+annotations_as_mcp <- function(annotations, context) {
   out <- annotations
-  last_modified <- out$last_modified
-  out$last_modified <- NULL
+  last_modified <- out[["last_modified"]]
+  out[["last_modified"]] <- NULL
 
   if (
-    protocol_version_gte(protocol_version, "2025-06-18") &&
+    context_supports_rich_content_fields(context) &&
       !is.null(last_modified)
   ) {
-    out$lastModified <- last_modified
+    out[["lastModified"]] <- last_modified
   }
 
   out
 }
 
-content_block_as_mcp <- function(content, protocol_version) {
+content_block_as_mcp <- function(content, context) {
   out <- switch(
     content$type,
     text = list(type = "text", text = content$text),
@@ -421,14 +457,11 @@ content_block_as_mcp <- function(content, protocol_version) {
   )
 
   if (length(content$annotations) > 0) {
-    out$annotations <- annotations_as_mcp(
-      content$annotations,
-      protocol_version
-    )
+    out$annotations <- annotations_as_mcp(content$annotations, context)
   }
 
   if (
-    protocol_version_gte(protocol_version, "2025-06-18") &&
+    context_supports_rich_content_fields(context) &&
       length(content$meta) > 0
   ) {
     out$`_meta` <- content$meta
@@ -437,11 +470,11 @@ content_block_as_mcp <- function(content, protocol_version) {
   out
 }
 
-tool_result_as_mcp <- function(result, protocol_version) {
+tool_result_as_mcp <- function(result, context) {
   content_types <- vapply(result$content, `[[`, character(1), "type")
   supported <- vapply(
     content_types,
-    function(type) protocol_supports_content_type(protocol_version, type),
+    function(type) protocol_supports_content_type(context, type),
     logical(1)
   )
 
@@ -449,7 +482,7 @@ tool_result_as_mcp <- function(result, protocol_version) {
     stop(
       sprintf(
         "MCP protocol %s does not support tool-result content type(s): %s.",
-        protocol_version,
+        context$protocol_version,
         paste(unique(content_types[!supported]), collapse = ", ")
       ),
       call. = FALSE
@@ -460,16 +493,19 @@ tool_result_as_mcp <- function(result, protocol_version) {
     content = lapply(
       result$content,
       content_block_as_mcp,
-      protocol_version = protocol_version
+      context = context
     ),
     isError = result$is_error
   )
 
-  if (
-    protocol_version_gte(protocol_version, "2025-06-18") &&
-      !is.null(result$structured_content)
-  ) {
-    out$structuredContent <- result$structured_content
+  projection <- structured_content_projection_policy(context)
+  emit_structured_content <- !is.null(result$structured_content) &&
+    (identical(projection, "any-json-value") ||
+      (identical(projection, "object-value") &&
+        startsWith(to_json(result$structured_content), "{")))
+  if (emit_structured_content) {
+    # Single-bracket replacement preserves zero-length object/array values.
+    out["structuredContent"] <- list(result$structured_content)
   }
 
   if (length(result$meta) > 0) {
@@ -482,10 +518,10 @@ tool_result_as_mcp <- function(result, protocol_version) {
   out
 }
 
-as_tool_call_response <- function(id, result, protocol_version) {
+as_tool_call_response <- function(id, result, context) {
   result <- as_tool_result(result)
   jsonrpc_response(
     id,
-    result = tool_result_as_mcp(result, protocol_version)
+    result = tool_result_as_mcp(result, context)
   )
 }

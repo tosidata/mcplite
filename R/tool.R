@@ -10,26 +10,42 @@
 #' Pre-serialized JSON strings remain text, and bare lists are ordinary values,
 #' not MCP result objects.
 #'
-#' An `output_schema` advertises the expected object-shaped
-#' `structured_content` to MCP `2025-06-18` and later clients. `mcplite` checks
-#' that the normalized schema has JSON-object wire shape and is serializable,
-#' but does not perform runtime schema validation.
+#' `arguments` accepts either the existing named list of property helpers or one
+#' complete object-root schema from `type_from_schema()`. Complete schemas must
+#' have direct root `type = "object"`; JSON Schema 2020-12 keywords such as
+#' `$schema`, `$defs`, `$ref`, composition, and conditionals are preserved.
+#'
+#' Incoming JSON arrays reach `fun` as R lists, not atomic vectors. Schemas do
+#' not coerce or validate argument values or supply R defaults. Marking a
+#' property `required = FALSE` permits omission in the advertised schema; the
+#' R function must provide its own default for calls that omit that argument.
+#'
+#' An `output_schema` advertises the expected `structured_content` shape. Modern
+#' MCP `2026-07-28` clients receive every supported schema shape. Retained
+#' `2025-06-18` and `2025-11-25` clients receive direct object-root output
+#' schemas, while incompatible non-object schemas and all `2024-11-05` output
+#' schemas are omitted. `mcplite` checks schema container shape and
+#' serializability. It does not check full schema validity or runtime
+#' input/output conformance; tool authors own those guarantees.
 #'
 #' @param fun Function to expose as a tool.
 #' @param description A single string describing when and how to use the tool.
 #' @param ... Not used. Supply argument schemas with `arguments`.
 #' @param arguments Named list of argument schemas created by the `type_*()`
-#'   helpers.
+#'   helpers, or one complete direct object-root schema created by
+#'   `type_from_schema()`.
 #' @param name Optional tool name. If omitted, `tool()` uses the symbol name
 #'   supplied to `fun`; anonymous functions must supply `name`. Tool names must
 #'   use 1 to 128 characters from letters, digits, underscore, dot, and hyphen.
 #' @param annotations Optional named list of MCP tool annotations to advertise.
-#' @param output_schema Optional object-shaped output schema created by a
-#'   supported `type_*()` helper. Raw schema lists must be wrapped with
-#'   [type_from_schema()]. The schema is advertised to MCP `2025-06-18` and
-#'   later clients; tool authors remain responsible for result conformance.
+#' @param output_schema Optional output schema created by a supported `type_*()`
+#'   helper. Raw schema lists must be wrapped with [type_from_schema()]. Modern
+#'   clients receive every supported schema shape; retained legacy clients
+#'   receive only compatible object-root projections. Tool authors remain
+#'   responsible for schema validity and result conformance.
 #'
-#' @return A lightweight mcplite tool definition.
+#' @return The supplied function with MCP metadata attached. It remains directly
+#'   callable as an R function and can be supplied to [mcp_server()].
 #' @export
 #'
 #' @examples
@@ -44,6 +60,7 @@
 #'     y = type_number("Second number.")
 #'   )
 #' )
+#' add_numbers(2, 3)
 tool <- function(
   fun,
   description,
@@ -69,9 +86,7 @@ tool <- function(
 
   name <- tool_name(name, substitute(fun))
 
-  if (!is_named_or_empty_list(arguments)) {
-    stop("`arguments` must be a named list of type helpers.", call. = FALSE)
-  }
+  input_schema <- normalize_tool_input_schema(arguments)
 
   if (!is_named_or_empty_list(annotations)) {
     stop("`annotations` must be a named list.", call. = FALSE)
@@ -82,7 +97,7 @@ tool <- function(
   attr(fun, "mcplite_tool") <- list(
     name = name,
     description = description,
-    arguments = normalize_tool_argument_types(arguments),
+    input_schema = input_schema,
     annotations = annotations,
     output_schema = output_schema
   )
@@ -90,22 +105,31 @@ tool <- function(
   fun
 }
 
-#' Define MCP tool argument schemas
+#' Define MCP tool schemas
 #'
-#' These helpers create the JSON Schema subset that `mcplite` advertises for
-#' tool arguments. They describe inputs for clients; tool functions still own
-#' domain validation, coercion, authorization or access checks, side-effect
-#' safety, output sanitization, and rate limiting where needed.
+#' These helpers create common JSON Schema descriptions for tool arguments and
+#' output. `type_from_schema()` wraps a complete schema supplied as a list or
+#' JSON string without removing JSON Schema 2020-12 keywords. A complete tool
+#' input schema can be passed directly as `arguments = type_from_schema(...)`
+#' when it has direct root `type = "object"`.
 #'
-#' Generated schemas are MCP-compatible JSON Schema objects. When `$schema` is
-#' absent, MCP treats schemas as JSON Schema 2020-12. `type_from_schema()`
-#' callers are responsible for supplying valid MCP-compatible schemas. List
-#' input preserves the supplied R list shape: use a named empty list for `{}`
-#' and an unnamed empty list for `[]`.
+#' When `$schema` is absent, MCP treats schemas as JSON Schema 2020-12. Authors
+#' are responsible for schema validity and for runtime input/output conformance,
+#' domain validation, authorization or access checks, side-effect safety,
+#' output sanitization, and rate limiting where needed. List input preserves the
+#' supplied R list shape: use a named empty list for `{}` and an unnamed empty
+#' list for `[]`.
+#'
+#' Incoming JSON arrays remain R lists. These helpers do not coerce or validate
+#' argument values or supply R defaults. If an argument may be omitted, give
+#' the R function a default for it.
+#'
+#' `type_ignore()` omits an argument from the advertised schema. It does not
+#' reject a caller-supplied argument or enforce permissions.
 #'
 #' @param description Optional argument description.
 #' @param required Whether the argument is listed as required in the parent
-#'   schema.
+#'   schema. `FALSE` permits omission but does not set an R default.
 #'
 #' @return A lightweight mcplite tool type object.
 #' @examples
@@ -340,11 +364,42 @@ normalize_tool_argument_types <- function(arguments) {
   arguments[!vapply(arguments, is_ignored_tool_type, logical(1))]
 }
 
-check_schema_containers <- function(schema) {
+normalize_tool_input_schema <- function(arguments) {
+  if (inherits(arguments, "mcplite_tool_type_schema")) {
+    schema <- schema_from_tool_type(arguments)
+    schema <- normalize_json_object(schema, "arguments")
+    if (!identical(schema[["type"]], "object")) {
+      stop(
+        paste(
+          "`arguments = type_from_schema(...)` must have direct root",
+          "`type = \"object\"`."
+        ),
+        call. = FALSE
+      )
+    }
+  } else {
+    if (!is_named_or_empty_list(arguments)) {
+      stop(
+        paste(
+          "`arguments` must be a named list of type helpers or a complete",
+          "object-root schema from `type_from_schema()`."
+        ),
+        call. = FALSE
+      )
+    }
+    schema <- schema_from_properties(normalize_tool_argument_types(arguments))
+  }
+
+  check_schema_containers(schema, "arguments")
+  check_json_serializable(schema, "arguments")
+  schema
+}
+
+check_schema_containers <- function(schema, arg = "output_schema") {
   if (is.function(schema) || is.environment(schema)) {
     stop(
       paste(
-        "`output_schema` must be JSON serializable;",
+        sprintf("`%s` must be JSON serializable;", arg),
         "functions and environments are not JSON values."
       ),
       call. = FALSE
@@ -354,14 +409,14 @@ check_schema_containers <- function(schema) {
   # Classed lists can override JSON container shape, as data frames do.
   if (is.list(schema) && is.object(schema)) {
     stop(
-      "`output_schema` contains an unsupported classed list container.",
+      sprintf("`%s` contains an unsupported classed list container.", arg),
       call. = FALSE
     )
   }
 
   if (is.list(schema)) {
     for (value in schema) {
-      check_schema_containers(value)
+      check_schema_containers(value, arg)
     }
   }
 
@@ -382,11 +437,8 @@ normalize_tool_output_schema <- function(output_schema) {
 
   schema <- schema_from_tool_type(output_schema)
   schema <- normalize_json_object(schema, "output_schema")
-  if (!identical(schema$type, "object")) {
-    stop("`output_schema` must normalize to an object schema.", call. = FALSE)
-  }
 
-  check_schema_containers(schema)
+  check_schema_containers(schema, "output_schema")
   check_json_serializable(schema, "output_schema")
   schema
 }

@@ -129,9 +129,21 @@ stdio_client_messages <- function() {
   # Check-stage installed tests cannot rely on unexported package helpers.
   empty_object <- structure(list(), names = character())
   encode <- function(x) jsonlite::toJSON(x, auto_unbox = TRUE, null = "null")
+  modern_meta <- list(
+    "io.modelcontextprotocol/protocolVersion" = "2026-07-28",
+    "io.modelcontextprotocol/clientCapabilities" = empty_object
+  )
+  modern <- function(id, method, params = list()) {
+    params[["_meta"]] <- modern_meta
+    encode(list(jsonrpc = "2.0", id = id, method = method, params = params))
+  }
 
   list(
     malformed_json = "{not-json}",
+    modern_discovery = modern(20L, "server/discover"),
+    modern_tools_list = modern(21L, "tools/list"),
+    modern_tool_call = modern(22L, "tools/call", list(name = "chatty")),
+    modern_tool_error = modern(23L, "tools/call", list(name = "explode")),
     initialize = encode(list(
       jsonrpc = "2.0",
       id = 1,
@@ -161,6 +173,11 @@ stdio_client_messages <- function() {
     initialized = encode(list(
       jsonrpc = "2.0",
       method = "notifications/initialized"
+    )),
+    legacy_ping = encode(list(
+      jsonrpc = "2.0",
+      id = 24L,
+      method = "ping"
     )),
     unknown_method = encode(list(
       jsonrpc = "2.0",
@@ -249,6 +266,76 @@ test_that("stdio server keeps stdout reserved for MCP JSON messages in source te
   withr::local_envvar(R_TESTS = "")
 
   expect_stdio_roundtrip(run_stdio_roundtrip("source"))
+})
+
+test_that("stdio serves fresh and mixed-era modern traffic safely", {
+  skip_if_not_installed("processx")
+  skip_if(testthat::is_checking())
+  withr::local_envvar(R_TESTS = "")
+
+  process <- start_stdio_process("source")
+  withr::defer(process$kill())
+  messages <- stdio_client_messages()
+
+  process$write_input(paste0(messages$modern_discovery, "\n"))
+  discovery <- read_stdio_response(process)
+  expect_identical(
+    discovery$result$supportedVersions,
+    as.list(c("2026-07-28", "2025-11-25", "2025-06-18", "2024-11-05"))
+  )
+  expect_identical(
+    discovery$result$capabilities,
+    list(
+      tools = list(
+        listChanged = FALSE
+      )
+    )
+  )
+  expect_identical(discovery$result$resultType, "complete")
+  expect_identical(discovery$result$cacheScope, "public")
+  expect_identical(discovery$result$ttlMs, 300000L)
+  expect_identical(
+    discovery$result$`_meta`[["io.modelcontextprotocol/serverInfo"]]$name,
+    "mcplite"
+  )
+
+  process$write_input(paste0(messages$modern_tool_call, "\n"))
+  fresh_call <- read_stdio_response(process)
+  expect_identical(fresh_call$result$content[[1]]$text, "quiet")
+  expect_identical(fresh_call$result$resultType, "complete")
+  expect_null(fresh_call$result$ttlMs)
+  expect_null(fresh_call$result$cacheScope)
+
+  process$write_input(paste0(messages$initialize, "\n"))
+  initialize <- read_stdio_response(process)
+  expect_identical(initialize$result$protocolVersion, "2025-11-25")
+  expect_null(initialize$result$resultType)
+  process$write_input(paste0(messages$initialized, "\n"))
+  process$write_input(paste0(messages$rich_tool_call, "\n"))
+  legacy_call <- read_stdio_response(process)
+  expect_identical(legacy_call$result$structuredContent$ok, TRUE)
+  expect_null(legacy_call$result$resultType)
+
+  process$write_input(paste0(messages$modern_tools_list, "\n"))
+  modern_list <- read_stdio_response(process)
+  expect_length(modern_list$result$tools, 4)
+  expect_identical(modern_list$result$resultType, "complete")
+  expect_identical(modern_list$result$cacheScope, "public")
+  expect_identical(modern_list$result$ttlMs, 300000L)
+
+  process$write_input(paste0(messages$modern_tool_error, "\n"))
+  modern_error <- read_stdio_response(process)
+  expect_true(modern_error$result$isError)
+  expect_identical(modern_error$result$resultType, "complete")
+  expect_null(modern_error$error)
+
+  process$write_input(paste0(messages$legacy_ping, "\n"))
+  legacy_ping <- read_stdio_response(process)
+  expect_identical(legacy_ping$result, structure(list(), names = character()))
+  expect_null(legacy_ping$resultType)
+
+  expect_true(process$is_alive())
+  expect_length(process$read_error_lines(), 0)
 })
 
 test_that("stdio keeps stderr telemetry separate from MCP stdout", {

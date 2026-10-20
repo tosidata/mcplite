@@ -1,3 +1,20 @@
+# mcplite 0.1.0.9000
+
+* Adds stateless MCP `2026-07-28` support while retaining initialize-based MCP
+  `2024-11-05`, `2025-06-18`, and `2025-11-25`. Modern discovery, tool listing,
+  and tool calls work without initialization; legacy ping behavior is preserved,
+  while modern ping is unsupported.
+* Adds `server/discover` with deterministic four-version ordering. Successful
+  modern results include canonical server identity and
+  `resultType = "complete"`; discovery and tool-list results include public
+  cache hints.
+* Expands tool schemas and protocol-native results. Complete object-root input
+  schemas retain JSON Schema 2020-12 keywords; modern clients can receive
+  supported output-schema roots and all JSON structured-content shapes, while
+  older protocols receive compatible projections and fallback content. In
+  `tool_result()`, `NULL` means no structured content and scalar atomic `NA`
+  represents JSON `null`.
+
 # mcplite 0.1.0
 
 * First release of the lightweight, tools-only Model Context Protocol (MCP)

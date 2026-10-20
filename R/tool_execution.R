@@ -17,7 +17,7 @@ invoke_tool <- function(tool, arguments) {
   value
 }
 
-execute_tool_call <- function(id, tool, arguments, protocol_version) {
+execute_tool_call <- function(id, tool, arguments, context) {
   result <- tryCatch(
     invoke_tool(tool, arguments),
     error = function(cnd) {
@@ -29,7 +29,7 @@ execute_tool_call <- function(id, tool, arguments, protocol_version) {
   )
 
   tryCatch(
-    as_tool_call_response(id, result, protocol_version),
+    as_tool_call_response(id, result, context),
     error = function(cnd) {
       # This fallback is intentionally one known-good text block and does not
       # recurse through the failed result normalization path.
@@ -39,7 +39,7 @@ execute_tool_call <- function(id, tool, arguments, protocol_version) {
       )
       jsonrpc_response(
         id,
-        result = tool_result_as_mcp(error_result, protocol_version)
+        result = tool_result_as_mcp(error_result, context)
       )
     }
   )

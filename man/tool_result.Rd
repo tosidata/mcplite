@@ -17,9 +17,11 @@ an ordered list of such blocks. Omitting \code{content} permits automatic text
 fallback generation from \code{structured_content}; explicit \code{content = list()}
 suppresses fallback and is invalid.}
 
-\item{structured_content}{Optional named list representing a JSON object.
-An empty object is allowed. \code{mcplite} does not validate this value against
-a tool's advertised output schema.}
+\item{structured_content}{Optional R value representable as a JSON object,
+array, or scalar. Use \code{NA} for JSON \code{null} and \code{NULL} for absence. Named
+and unnamed empty lists represent \code{{}} and \verb{[]}, respectively. \code{mcplite}
+checks JSON representability but does not validate this value against a
+tool's advertised output schema.}
 
 \item{is_error}{Whether the result reports a tool error.}
 
@@ -33,14 +35,26 @@ A protocol-native tool result for return from a tool function.
 \code{tool_result()} is the explicit opt-in boundary for returning protocol-native
 MCP results. Its \code{content} must be created with one of the \verb{content_*()}
 constructors; ordinary R values, including bare lists and JSON strings,
-retain the legacy single-text-block conversion used by \code{\link[=tool]{tool()}}.
+retain the single-text-block conversion used by \code{mcplite::tool()}.
 }
 \details{
+Use \code{NA} for explicit JSON \code{null} and \code{NULL} for absent structured content.
+Named and unnamed empty lists represent \code{{}} and \verb{[]}, respectively.
+
 When \code{structured_content} is supplied and \code{content} is omitted,
 \code{tool_result()} generates exactly one JSON text fallback block. Explicitly
-supplied content is preserved as-is and no fallback is appended. Structured
-content and tool output schemas are sent only to clients using MCP
-\code{2025-06-18} or later; older clients receive the generated text fallback.
+supplied content is preserved as-is and no fallback is appended. MCP
+\code{2026-07-28} results emit every supported JSON value. Retained \code{2025-06-18}
+and \code{2025-11-25} results emit object values only, and \code{2024-11-05} omits
+structured content. Compatible explicit or generated content remains
+available whenever a legacy projection omits \code{structuredContent}.
+
+Structured R values use the mappings of \code{\link[jsonlite:toJSON]{jsonlite::toJSON()}}. The \code{NA} null
+convention applies only to an unclassed, dimensionless scalar atomic \code{NA};
+classed or dimensioned missing values and \code{NaN} retain their jsonlite
+mappings. Tool authors are responsible for conformance with any advertised
+output schema. \code{is_error = TRUE} reports a tool-level error while retaining
+the normal MCP tool-result envelope.
 }
 \examples{
 tool_result(content_text("Done."))

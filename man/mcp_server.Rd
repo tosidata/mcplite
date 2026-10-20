@@ -11,8 +11,8 @@ mcp_server(tools, instructions = NULL)
 or a list of tool definitions. Compatible \code{ellmer::tool()} objects are
 accepted when supplied directly.}
 
-\item{instructions}{Optional server instructions to advertise to clients that
-negotiate a protocol version that supports them.}
+\item{instructions}{Optional server instructions to advertise to clients
+using a protocol version that supports them.}
 }
 \value{
 \code{mcp_server()} is called for its side effect of serving MCP requests.
@@ -27,17 +27,34 @@ objects can also be supplied when users already use ellmer, but ellmer is not
 required for ordinary mcplite tools.
 }
 \details{
-\code{mcplite} supports the lifecycle, ping, \code{tools/list}, and \code{tools/call} subset
-for protocol versions \code{2024-11-05}, \code{2025-06-18}, and \code{2025-11-25}. Tools
-may return ordinary R values for legacy text conversion or opt into native
-content and structured output with \code{\link[=tool_result]{tool_result()}}. Structured output,
-output schemas, audio, resource links, and per-content metadata require MCP
-\code{2025-06-18} or later. Text, images, embedded resources, annotations, and
-result metadata also work with \code{2024-11-05}.
+\code{mcplite} is a tools-only, stdio-only server. It supports stateless MCP
+\code{2026-07-28}, where clients select the protocol with per-request metadata.
+Modern \code{server/discover}, \code{tools/list}, and \code{tools/call} requests do not
+require \code{initialize}. Discovery advertises \code{2026-07-28}, \code{2025-11-25},
+\code{2025-06-18}, and \code{2024-11-05} in that preference order.
+
+Every successful modern result includes \code{resultType = "complete"} and the
+server's canonical identity in
+\verb{_meta["io.modelcontextprotocol/serverInfo"]}.
+Modern \code{server/discover} and \code{tools/list} results also include public cache
+hints with a 300000 millisecond
+TTL. Modern \code{ping} is unsupported.
+
+Retained MCP \code{2024-11-05}, \code{2025-06-18}, and \code{2025-11-25} clients use the
+\code{initialize} lifecycle and retain \code{ping}, \code{tools/list}, and \code{tools/call}.
+Tools may return ordinary R values for text conversion or opt into native
+content and structured output with \code{\link[=tool_result]{tool_result()}}. Modern clients receive
+every supported schema and structured-content shape. Legacy \code{2025-06-18}
+and \code{2025-11-25} clients receive object-shaped output schemas and structured
+content; compatible content fallback remains available for omitted fields.
+Text, images, embedded resources, annotations, and result metadata work in
+every supported version. Audio, resource links, and per-content metadata work
+for modern clients and retained \code{2025-06-18} and \code{2025-11-25} clients.
 
 The server does not implement JSON-RPC batching, HTTP transports, sessions,
-prompts, resource listing or reading, sampling, elicitation, roots, tasks,
-progress notifications, or server-initiated requests. Embedded resource
+prompts, resource listing or reading, subscriptions, cancellation, sampling,
+elicitation, roots, Tasks, MCP Apps, progress notifications, or
+server-initiated and other multi-round-trip requests. Embedded resource
 blocks are self-contained, and resource links do not make their URIs
 readable through \code{mcplite}.
 
@@ -50,9 +67,10 @@ complete server setup in a script that defines or sources tools and ends with
 
 \code{mcplite} automatically creates one OpenTelemetry server span for every
 parsed MCP request or notification that passes JSON-RPC envelope validation.
-This includes initialization and notifications, ping, tool discovery and
-calls, and valid unknown methods. Blank input, JSON parse failures, and
-malformed JSON-RPC envelopes do not create MCP operation spans.
+This includes retained legacy initialization and ping, notifications, modern
+discovery, tool listing and calls, and valid unknown methods. Blank input,
+JSON parse failures, and malformed JSON-RPC envelopes do not create MCP
+operation spans.
 
 Tool authors do not need to call \code{otel::start_local_active_span()} for the
 MCP operation or tool invocation. The server span remains active while tool

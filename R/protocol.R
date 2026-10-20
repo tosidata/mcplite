@@ -1,24 +1,65 @@
-supported_protocol_versions <- c(
+legacy_supported_protocol_versions <- c(
   "2024-11-05",
   "2025-06-18",
   "2025-11-25"
 )
 
-latest_protocol_version <- supported_protocol_versions[
-  length(supported_protocol_versions)
+modern_supported_protocol_versions <- "2026-07-28"
+
+discovery_supported_protocol_versions <- c(
+  modern_supported_protocol_versions,
+  rev(legacy_supported_protocol_versions)
+)
+
+modern_public_cache_ttl_ms <- 300000L
+
+latest_legacy_protocol_version <- legacy_supported_protocol_versions[
+  length(legacy_supported_protocol_versions)
 ]
 
-negotiate_protocol_version <- function(client_version) {
+negotiate_legacy_protocol_version <- function(client_version) {
   if (
     is_scalar_character(client_version) &&
-      client_version %in% supported_protocol_versions
+      client_version %in% legacy_supported_protocol_versions
   ) {
     client_version
   } else {
-    latest_protocol_version
+    latest_legacy_protocol_version
   }
 }
 
+input_schema_projection_policy <- function(context) {
+  # The context parameter keeps this projection interface protocol-shaped even
+  # though both current eras require the same direct object root.
+  "object-root"
+}
+
+output_schema_projection_policy <- function(context) {
+  if (identical(context$era, "modern")) {
+    return("any-json-schema")
+  }
+
+  if (protocol_version_gte(context$protocol_version, "2025-06-18")) {
+    "object-root"
+  } else {
+    "omit"
+  }
+}
+
+structured_content_projection_policy <- function(context) {
+  if (identical(context$era, "modern")) {
+    return("any-json-value")
+  }
+
+  if (protocol_version_gte(context$protocol_version, "2025-06-18")) {
+    "object-value"
+  } else {
+    "omit"
+  }
+}
+
+# Chronological comparison remains isolated to legacy wire projections. Modern
+# lifecycle classification is owned by the request context instead.
 protocol_version_gte <- function(version, reference) {
   version >= reference
 }
@@ -72,6 +113,21 @@ jsonrpc_invalid_params <- function(id = NULL, message = "Invalid params") {
     error = list(
       code = -32602,
       message = message
+    )
+  )
+}
+
+jsonrpc_unsupported_protocol_version <- function(id, requested) {
+  jsonrpc_response(
+    id,
+    error = list(
+      code = -32022,
+      message = "Unsupported protocol version",
+      data = list(
+        requested = requested,
+        # A list preserves JSON array shape for the one-version catalog.
+        supported = as.list(modern_supported_protocol_versions)
+      )
     )
   )
 }

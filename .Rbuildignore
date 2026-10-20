@@ -1,4 +1,5 @@
 ^\.eca($|/)
+^records(/|$)
 ^\.github$
 ^LICENSE\.md$
 ^docs/mcp-spec($|/)

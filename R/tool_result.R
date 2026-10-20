@@ -3,21 +3,35 @@
 #' `tool_result()` is the explicit opt-in boundary for returning protocol-native
 #' MCP results. Its `content` must be created with one of the `content_*()`
 #' constructors; ordinary R values, including bare lists and JSON strings,
-#' retain the legacy single-text-block conversion used by [tool()].
+#' retain the single-text-block conversion used by `mcplite::tool()`.
+#'
+#' Use `NA` for explicit JSON `null` and `NULL` for absent structured content.
+#' Named and unnamed empty lists represent `{}` and `[]`, respectively.
 #'
 #' When `structured_content` is supplied and `content` is omitted,
 #' `tool_result()` generates exactly one JSON text fallback block. Explicitly
-#' supplied content is preserved as-is and no fallback is appended. Structured
-#' content and tool output schemas are sent only to clients using MCP
-#' `2025-06-18` or later; older clients receive the generated text fallback.
+#' supplied content is preserved as-is and no fallback is appended. MCP
+#' `2026-07-28` results emit every supported JSON value. Retained `2025-06-18`
+#' and `2025-11-25` results emit object values only, and `2024-11-05` omits
+#' structured content. Compatible explicit or generated content remains
+#' available whenever a legacy projection omits `structuredContent`.
+#'
+#' Structured R values use the mappings of [jsonlite::toJSON()]. The `NA` null
+#' convention applies only to an unclassed, dimensionless scalar atomic `NA`;
+#' classed or dimensioned missing values and `NaN` retain their jsonlite
+#' mappings. Tool authors are responsible for conformance with any advertised
+#' output schema. `is_error = TRUE` reports a tool-level error while retaining
+#' the normal MCP tool-result envelope.
 #'
 #' @param content One content block created by a `content_*()` constructor, or
 #'   an ordered list of such blocks. Omitting `content` permits automatic text
 #'   fallback generation from `structured_content`; explicit `content = list()`
 #'   suppresses fallback and is invalid.
-#' @param structured_content Optional named list representing a JSON object.
-#'   An empty object is allowed. `mcplite` does not validate this value against
-#'   a tool's advertised output schema.
+#' @param structured_content Optional R value representable as a JSON object,
+#'   array, or scalar. Use `NA` for JSON `null` and `NULL` for absence. Named
+#'   and unnamed empty lists represent `{}` and `[]`, respectively. `mcplite`
+#'   checks JSON representability but does not validate this value against a
+#'   tool's advertised output schema.
 #' @param is_error Whether the result reports a tool error.
 #' @param meta Optional named result metadata. MCP wire names such as `_meta`
 #'   are created only during serialization.
@@ -45,15 +59,11 @@ tool_result <- function(
   meta = list()
 ) {
   content_was_missing <- missing(content)
-  structured_content <- normalize_json_object(
-    structured_content,
-    "structured_content",
-    allow_null = TRUE
-  )
+  structured_content <- normalize_structured_content(structured_content)
 
   if (content_was_missing) {
     content <- if (!is.null(structured_content)) {
-      list(content_text(to_json(structured_content)))
+      list(content_text(as.character(to_json(structured_content))))
     } else {
       list()
     }
@@ -268,6 +278,27 @@ normalize_json_object <- function(x, arg, allow_null = FALSE) {
   x
 }
 
+normalize_structured_content <- function(x) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+
+  # Logical NA encodes as null without changing nested numeric NA mappings.
+  if (
+    is.atomic(x) &&
+      !is.object(x) &&
+      is.null(dim(x)) &&
+      length(x) == 1L &&
+      is.na(x) &&
+      !is.nan(x)
+  ) {
+    x <- NA
+  }
+
+  check_json_serializable(x, "structured_content")
+  x
+}
+
 check_json_serializable <- function(x, arg) {
   tryCatch(
     to_json(x),
@@ -295,7 +326,7 @@ normalize_content_annotations <- function(annotations) {
     )
   }
 
-  audience <- annotations$audience
+  audience <- annotations[["audience"]]
   if (
     !is.null(audience) &&
       (!is.character(audience) ||
@@ -309,10 +340,10 @@ normalize_content_annotations <- function(annotations) {
     )
   }
   if (!is.null(audience)) {
-    annotations$audience <- as.list(audience)
+    annotations[["audience"]] <- as.list(audience)
   }
 
-  priority <- annotations$priority
+  priority <- annotations[["priority"]]
   if (
     !is.null(priority) &&
       (!is_scalar_numeric(priority) ||
@@ -324,7 +355,7 @@ normalize_content_annotations <- function(annotations) {
   }
 
   check_optional_scalar_string(
-    annotations$last_modified,
+    annotations[["last_modified"]],
     "annotations$last_modified"
   )
   check_json_serializable(annotations, "annotations")
@@ -399,9 +430,9 @@ normalize_content_block <- function(x) {
   }
 
   annotations <- x$annotations
-  if (is.list(annotations) && is.list(annotations$audience)) {
-    annotations$audience <- unlist(
-      annotations$audience,
+  if (is.list(annotations) && is.list(annotations[["audience"]])) {
+    annotations[["audience"]] <- unlist(
+      annotations[["audience"]],
       recursive = FALSE,
       use.names = FALSE
     )
@@ -474,11 +505,7 @@ new_tool_result <- function(
   structure(
     list(
       content = normalize_tool_result_content(content),
-      structured_content = normalize_json_object(
-        structured_content,
-        "structured_content",
-        allow_null = TRUE
-      ),
+      structured_content = normalize_structured_content(structured_content),
       is_error = is_error,
       meta = normalize_json_object(meta, "meta")
     ),

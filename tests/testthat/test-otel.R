@@ -215,6 +215,252 @@ test_that("disabled tracing does not force request telemetry metadata", {
   }
 })
 
+test_that("modern protocol span attribution is request-local", {
+  skip_if_not_installed("otelsdk")
+
+  initialized_state <- mcplite:::dispatch_message(
+    legacy_initialize_request(protocol_version = "2025-06-18"),
+    new_test_state()
+  )$state
+  missing_version <- modern_request("tools/list", id = 83L)
+  missing_version$params$`_meta`[
+    "io.modelcontextprotocol/protocolVersion"
+  ] <- NULL
+
+  cases <- list(
+    list(
+      name = "valid modern list",
+      request = modern_tools_list_request(id = 80L),
+      error_code = NULL,
+      tool_error = FALSE,
+      protocol_version = "2026-07-28"
+    ),
+    list(
+      name = "valid modern call",
+      request = modern_tool_call_request(
+        id = 85L,
+        name = "hello",
+        arguments = list(name = "Ada")
+      ),
+      error_code = NULL,
+      tool_error = FALSE,
+      protocol_version = "2026-07-28"
+    ),
+    list(
+      name = "modern tool error",
+      request = modern_tool_call_request(id = 86L, name = "explode"),
+      error_code = NULL,
+      tool_error = TRUE,
+      protocol_version = "2026-07-28"
+    ),
+    list(
+      name = "unsupported modern",
+      request = modern_request(
+        "tools/list",
+        id = 81L,
+        protocol_version = "1900-01-01"
+      ),
+      error_code = -32022,
+      tool_error = FALSE,
+      protocol_version = "1900-01-01"
+    ),
+    list(
+      name = "empty unsupported modern",
+      request = modern_request(
+        "tools/list",
+        id = 82L,
+        protocol_version = ""
+      ),
+      error_code = -32022,
+      tool_error = FALSE,
+      protocol_version = ""
+    ),
+    list(
+      name = "missing modern version",
+      request = missing_version,
+      error_code = -32602,
+      tool_error = FALSE,
+      protocol_version = NULL
+    ),
+    list(
+      name = "non-string modern version",
+      request = modern_request(
+        "tools/list",
+        id = 84L,
+        protocol_version = 20260728L
+      ),
+      error_code = -32602,
+      tool_error = FALSE,
+      protocol_version = NULL
+    ),
+    list(
+      name = "malformed modern log level",
+      request = modern_request(
+        "tools/list",
+        id = 87L,
+        extra_meta = named_list(
+          "io.modelcontextprotocol/logLevel" = "verbose"
+        )
+      ),
+      error_code = -32602,
+      tool_error = FALSE,
+      protocol_version = "2026-07-28"
+    )
+  )
+  states <- list(fresh = new_test_state(), post_legacy = initialized_state)
+
+  for (state_name in names(states)) {
+    state <- states[[state_name]]
+    for (case in cases) {
+      info <- paste(state_name, case$name, sep = ": ")
+      recording <- otelsdk::with_otel_record(
+        mcplite:::dispatch_message(case$request, state),
+        what = "traces"
+      )
+
+      expect_identical(
+        recording$value$response$error$code,
+        case$error_code,
+        info = info
+      )
+      expect_identical(
+        isTRUE(recording$value$response$result$isError),
+        case$tool_error,
+        info = info
+      )
+      expect_identical(recording$value$state, state, info = info)
+      span <- expect_single_mcplite_span(recording, info = info)
+      if (!is.null(span)) {
+        expect_identical(
+          span$attributes[["mcp.protocol.version"]],
+          case$protocol_version,
+          info = info
+        )
+        if (!is.null(case$error_code)) {
+          expect_identical(span$status, "error", info = info)
+          expect_identical(
+            span$attributes[["error.type"]],
+            as.character(case$error_code),
+            info = info
+          )
+        } else if (case$tool_error) {
+          expect_identical(span$status, "error", info = info)
+          expect_identical(
+            span$attributes[["error.type"]],
+            "tool_error",
+            info = info
+          )
+        } else {
+          expect_false(identical(span$status, "error"), info = info)
+          expect_null(span$attributes[["error.type"]], info = info)
+        }
+      }
+    }
+  }
+})
+
+test_that("legacy protocol spans use effective versions across mixed traffic", {
+  skip_if_not_installed("otelsdk")
+
+  recording <- otelsdk::with_otel_record(
+    {
+      exact <- mcplite:::dispatch_message(
+        legacy_initialize_request(id = 90L, protocol_version = "2025-06-18"),
+        new_test_state()
+      )
+      modern <- mcplite:::dispatch_message(
+        modern_request("tools/list", id = 91L),
+        exact$state
+      )
+      subsequent <- mcplite:::dispatch_message(
+        list(jsonrpc = "2.0", id = 92L, method = "ping"),
+        modern$state
+      )
+      list(exact = exact, modern = modern, subsequent = subsequent)
+    },
+    what = "traces"
+  )
+
+  expect_identical(recording$value$modern$state, recording$value$exact$state)
+  expect_identical(
+    recording$value$subsequent$state,
+    recording$value$exact$state
+  )
+  spans <- recorded_mcplite_spans(recording)
+  request_ids <- vapply(
+    spans,
+    function(span) span$attributes[["jsonrpc.request.id"]],
+    character(1)
+  )
+  spans <- stats::setNames(spans, request_ids)
+  expect_identical(
+    vapply(
+      spans[c("90", "91", "92")],
+      function(span) span$attributes[["mcp.protocol.version"]],
+      character(1)
+    ),
+    c("90" = "2025-06-18", "91" = "2026-07-28", "92" = "2025-06-18")
+  )
+
+  fallback <- otelsdk::with_otel_record(
+    {
+      initialized <- mcplite:::dispatch_message(
+        legacy_initialize_request(id = 93L, protocol_version = "1900-01-01"),
+        new_test_state()
+      )
+      subsequent <- mcplite:::dispatch_message(
+        list(jsonrpc = "2.0", id = 94L, method = "ping"),
+        initialized$state
+      )
+      list(initialized = initialized, subsequent = subsequent)
+    },
+    what = "traces"
+  )
+  fallback_spans <- recorded_mcplite_spans(fallback)
+  expect_identical(length(fallback_spans), 2L)
+  for (span in fallback_spans) {
+    expect_identical(
+      span$attributes[["mcp.protocol.version"]],
+      "2025-11-25"
+    )
+  }
+})
+
+test_that("operation spans ignore prefixed tool-name and request-id keys", {
+  skip_if_not_installed("otelsdk")
+
+  tool_name_prefix <- tool_call_request(name = "missing")
+  names(tool_name_prefix$params)[names(tool_name_prefix$params) == "name"] <-
+    "nameExtension"
+  call_recording <- record_initialized_request(tool_name_prefix)
+
+  expect_identical(call_recording$value$response$error$code, -32602)
+  call_span <- expect_single_mcplite_span(
+    call_recording,
+    name = "tools/call",
+    method = "tools/call"
+  )
+  if (!is.null(call_span)) {
+    expect_null(call_span$attributes[["gen_ai.tool.name"]])
+  }
+
+  id_prefix <- list(jsonrpc = "2.0", idExtra = 75L, method = "ping")
+  id_recording <- otelsdk::with_otel_record(
+    mcplite:::dispatch_message(id_prefix, new_test_state()),
+    what = "traces"
+  )
+
+  expect_null(id_recording$value$response)
+  id_span <- expect_single_mcplite_span(
+    id_recording,
+    name = "ping",
+    method = "ping"
+  )
+  if (!is.null(id_span)) {
+    expect_null(id_span$attributes[["jsonrpc.request.id"]])
+  }
+})
+
 test_that("successful initialized tool calls record one MCP server span", {
   skip_if_not_installed("otelsdk")
 
@@ -325,18 +571,17 @@ test_that("remaining MCP operations require spans without behavior changes", {
   )
   initialized_state <- initialized$state
   client_initialized_state <- initialized_state
-  client_initialized_state$client_initialized <- TRUE
+  client_initialized_state$legacy$client_initialized <- TRUE
+  fallback_state <- new_test_state()
+  fallback_state$legacy$initialized <- TRUE
+  fallback_state$legacy$protocol_version <- "2025-11-25"
 
   cases <- list(
     list(
       method = "initialize",
       request = initialize_request(protocol_version = "9999-01-01"),
       state = new_test_state(),
-      expected_state = list(
-        initialized = TRUE,
-        protocol_version = "2025-11-25",
-        client_initialized = FALSE
-      ),
+      expected_state = fallback_state,
       request_id = "1",
       protocol_version = "2025-11-25",
       check_response = function(response) {
@@ -371,11 +616,7 @@ test_that("remaining MCP operations require spans without behavior changes", {
       method = "ping",
       request = list(jsonrpc = "2.0", id = 99L, method = "ping"),
       state = new_test_state(),
-      expected_state = list(
-        initialized = FALSE,
-        protocol_version = NULL,
-        client_initialized = FALSE
-      ),
+      expected_state = new_test_state(),
       request_id = "99",
       protocol_version = NULL,
       check_response = function(response) {
@@ -440,21 +681,7 @@ test_that("remaining MCP operations require spans without behavior changes", {
     result <- recording$value
 
     case$check_response(result$response)
-    expect_identical(
-      result$state$initialized,
-      case$expected_state$initialized,
-      info = case$method
-    )
-    expect_identical(
-      result$state$protocol_version,
-      case$expected_state$protocol_version,
-      info = case$method
-    )
-    expect_identical(
-      result$state$client_initialized,
-      case$expected_state$client_initialized,
-      info = case$method
-    )
+    expect_identical(result$state, case$expected_state, info = case$method)
 
     span <- expect_single_mcplite_span(
       recording,
@@ -576,6 +803,43 @@ test_that("valid tracestate is accepted with remote parent context", {
   if (!is.null(span) && length(remote_parents) == 1L) {
     expect_identical(span$parent, remote_parents[[1]]$span_id)
     expect_identical(span$trace_id, remote_parents[[1]]$trace_id)
+  }
+})
+
+test_that("prefixed trace metadata does not override ambient parentage", {
+  skip_if_not_installed("otelsdk")
+
+  recording <- record_initialized_request(
+    {
+      remote_headers <- packed_test_remote_context("vendor=value")
+      request <- tool_call_request(
+        id = 43L,
+        name = "hello",
+        arguments = list(name = "Ada")
+      )
+      request$params[["_meta"]] <- list(
+        traceparentExtra = remote_headers[["traceparent"]],
+        tracestateExtra = remote_headers[["tracestate"]]
+      )
+      request
+    },
+    ambient_parent_name = "test.ambient.parent"
+  )
+
+  expect_null(recording$value$response$error)
+  span <- expect_single_mcplite_span(recording)
+  ambient_parents <- recorded_spans_named(recording, "test.ambient.parent")
+  remote_parents <- recorded_spans_named(recording, "test.remote.parent")
+  expect_length(ambient_parents, 1L)
+  expect_length(remote_parents, 1L)
+
+  if (
+    !is.null(span) &&
+      length(ambient_parents) == 1L &&
+      length(remote_parents) == 1L
+  ) {
+    expect_identical(span$parent, ambient_parents[[1]]$span_id)
+    expect_false(identical(span$parent, remote_parents[[1]]$span_id))
   }
 })
 
@@ -923,6 +1187,17 @@ test_that("invalid inputs do not create MCP operation spans", {
       response = list(
         jsonrpc = "2.0",
         id = 73L,
+        error = list(code = -32600, message = "Invalid Request")
+      )
+    ),
+    list(
+      name = "prefixed method",
+      line = otel_request_line(
+        list(jsonrpc = "2.0", id = 74L, methodExtra = "ping")
+      ),
+      response = list(
+        jsonrpc = "2.0",
+        id = 74L,
         error = list(code = -32600, message = "Invalid Request")
       )
     ),

@@ -34,11 +34,11 @@ as_tool_registry <- function(tools) {
   )
 }
 
-registry_tools_as_mcp <- function(registry, protocol_version) {
+registry_tools_as_mcp <- function(registry, context) {
   lapply(
     unname(registry$tools),
     tool_as_mcp_definition,
-    protocol_version = protocol_version
+    context = context
   )
 }
 
