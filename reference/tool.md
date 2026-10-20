@@ -39,7 +39,9 @@ tool(
 
 - arguments:
 
-  Named list of argument schemas created by the `type_*()` helpers.
+  Named list of argument schemas created by the `type_*()` helpers, or
+  one complete direct object-root schema created by
+  [`type_from_schema()`](https://tosidata.github.io/mcplite/reference/tool-types.md).
 
 - name:
 
@@ -53,27 +55,51 @@ tool(
 
 - output_schema:
 
-  Optional object-shaped output schema created by a supported `type_*()`
-  helper. Raw schema lists must be wrapped with
+  Optional output schema created by a supported `type_*()` helper. Raw
+  schema lists must be wrapped with
   [`type_from_schema()`](https://tosidata.github.io/mcplite/reference/tool-types.md).
-  The schema is advertised to MCP `2025-06-18` and later clients; tool
-  authors remain responsible for result conformance.
+  See "Complete schemas and structured output" for author
+  responsibilities and protocol compatibility.
 
 ## Value
 
-A lightweight mcplite tool definition.
+The supplied function with MCP metadata attached. It remains directly
+callable as an R function and can be supplied to
+[`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md).
 
-## Details
+## Arguments and defaults
 
-Character values are returned as literal text, character vectors are
-joined with newlines, and other JSON-serializable R values are encoded
-as JSON. Pre-serialized JSON strings remain text, and bare lists are
-ordinary values, not MCP result objects.
+Incoming JSON arrays reach `fun` as R lists, not atomic vectors. Schemas
+do not coerce or validate argument values or supply R defaults. Marking
+a property `required = FALSE` permits omission in the advertised schema;
+the R function must provide its own default for calls that omit that
+argument.
 
-An `output_schema` advertises the expected object-shaped
-`structured_content` to MCP `2025-06-18` and later clients. `mcplite`
-checks that the normalized schema has JSON-object wire shape and is
-serializable, but does not perform runtime schema validation.
+## Return values
+
+Ordinary character values become literal text, not parsed JSON. Bare
+lists are ordinary values, not MCP result objects. See [Return-value
+mappings](https://tosidata.github.io/mcplite/reference/mcplite-results.md)
+for exact conversions, empty and missing values, and payload JSON
+options. Configure those options before constructing results and
+starting the server.
+
+## Complete schemas and structured output
+
+`arguments` also accepts one complete object-root schema from
+[`type_from_schema()`](https://tosidata.github.io/mcplite/reference/tool-types.md).
+Complete input schemas must have direct root `type = "object"`; JSON
+Schema 2020-12 keywords such as `$schema`, `$defs`, `$ref`, composition,
+and conditionals are preserved.
+
+An `output_schema` advertises the expected `structured_content` shape. A
+client's protocol can omit an incompatible output schema without
+removing the tool; see
+[`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md)
+under "Protocol compatibility" for the exact version rules. `mcplite`
+checks schema container shape and serializability, not full schema
+validity or runtime input/output conformance. Tool authors own those
+guarantees.
 
 ## Examples
 
@@ -89,4 +115,6 @@ add_numbers <- tool(
     y = type_number("Second number.")
   )
 )
+add_numbers(2, 3)
+#> [1] 5
 ```

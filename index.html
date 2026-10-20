@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">mcplite</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,13 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="articles/mcplite.html">Get started</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-guides" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Guides</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-guides">
+<li><a class="dropdown-item" href="articles/writing-tools.html">Write tools</a></li>
+    <li><a class="dropdown-item" href="articles/returning-results.html">Return results</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
@@ -52,9 +59,7 @@
 </h1></div>
 <!-- badges: start -->
 
-<p><code>mcplite</code> lets you expose R functions as <a href="https://modelcontextprotocol.io/" class="external-link">Model Context Protocol</a> (MCP) tools. It runs a small server over standard input and output, which is the transport most desktop MCP clients use to launch local tool servers.</p>
-<p>Documentation is available at <a href="https://tosidata.github.io/mcplite/" class="uri">https://tosidata.github.io/mcplite/</a>.</p>
-<p>Use it when you want an MCP client to call R code such as data lookups, calculations, report helpers, or local automation.</p>
+<p><code>mcplite</code> exposes R functions as <a href="https://modelcontextprotocol.io/" class="external-link">Model Context Protocol</a> (MCP) tools through a lightweight standard-input/standard-output (stdio) server. Use it when a local MCP client needs to call R code for data lookups, calculations, report helpers, or automation.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -101,25 +106,25 @@
 <p><code><a href="reference/mcp_server.html">mcp_server()</a></code> starts serving immediately and runs until standard input closes, so launch it through the MCP client rather than from an interactive R console.</p>
 </div>
 <div class="section level2">
-<h2 id="results">Results<a class="anchor" aria-label="anchor" href="#results"></a>
+<h2 id="supported-scope">Supported scope<a class="anchor" aria-label="anchor" href="#supported-scope"></a>
 </h2>
-<p>For most tools, return an ordinary R value. Character values become text, while other JSON-serializable values are returned as JSON in a text content block. Bare lists are ordinary results, not MCP result objects.</p>
-<p>Use <code><a href="reference/tool_result.html">tool_result()</a></code> when a tool needs rich content blocks or structured results. See <code><a href="reference/tool_result.html">?tool_result</a></code> for the result formats and compatibility details.</p>
+<p><code>mcplite</code> is a tools-only, stdio-only MCP server. It supports modern MCP <code>2026-07-28</code> and legacy MCP <code>2024-11-05</code>, <code>2025-06-18</code>, and <code>2025-11-25</code>. The same server definition works with modern and legacy clients.</p>
+<p>Tools can return ordinary R values, rich MCP content, structured results, and tool-level errors. Compatible <code><a href="https://ellmer.tidyverse.org/reference/tool.html" class="external-link">ellmer::tool()</a></code> definitions can also be supplied directly.</p>
+<p>The package focuses on local, client-launched tools. It does not provide an HTTP transport, prompt or resource endpoints, or multi-round-trip MCP feature families. Tools can still include supported embedded resources and resource links in their results.</p>
 </div>
 <div class="section level2">
-<h2 id="scope">Scope<a class="anchor" aria-label="anchor" href="#scope"></a>
+<h2 id="learn-more">Learn more<a class="anchor" aria-label="anchor" href="#learn-more"></a>
 </h2>
-<p><code>mcplite</code> supports local, client-launched stdio tool servers. It does not implement HTTP transport or the MCP prompts, resources, and sampling capabilities. Tools can still return supported content blocks; content blocks are tool results, not implementations of those MCP capabilities.</p>
-</div>
-<div class="section level2">
-<h2 id="ellmer-interoperability">ellmer interoperability<a class="anchor" aria-label="anchor" href="#ellmer-interoperability"></a>
-</h2>
-<p>Compatible <code><a href="https://ellmer.tidyverse.org/reference/tool.html" class="external-link">ellmer::tool()</a></code> definitions can be passed directly to <code><a href="reference/mcp_server.html">mcp_server()</a></code>. <code>ellmer</code> is optional and is not needed for tools defined with <code>mcplite</code>.</p>
-</div>
-<div class="section level2">
-<h2 id="function-reference">Function reference<a class="anchor" aria-label="anchor" href="#function-reference"></a>
-</h2>
-<p>See <code><a href="reference/tool.html">?tool</a></code> for tool definitions, <code><a href="reference/tool-types.html">help("tool-types", package = "mcplite")</a></code> for schema helpers, <code><a href="reference/tool_result.html">?tool_result</a></code> and <code><a href="reference/content-blocks.html">help("content-blocks", package = "mcplite")</a></code> for rich results, and <code><a href="reference/mcp_server.html">?mcp_server</a></code> for server behavior, scope, lifecycle, interoperability, and tracing details.</p>
+<p>Choose the next task:</p>
+<ul>
+<li>
+<a href="https://tosidata.github.io/mcplite/articles/mcplite.html">Get started</a>: save a server script, connect a client, and make a first call.</li>
+<li>
+<a href="https://tosidata.github.io/mcplite/articles/writing-tools.html">Write tools</a>: describe arguments, handle defaults and arrays, and report failures.</li>
+<li>
+<a href="https://tosidata.github.io/mcplite/articles/returning-results.html">Return results</a>: choose ordinary values, structured content, or rich content blocks.</li>
+</ul>
+<p>For installed help, start with <code><a href="reference/mcplite.html">?mcplite</a></code>. See <code><a href="reference/tool.html">?tool</a></code> and <code><a href="reference/tool-types.html">help("tool-types", package = "mcplite")</a></code> for definitions and schemas, <code><a href="reference/mcplite-results.html">help("mcplite-results", package = "mcplite")</a></code> for exact return-value mappings and payload options, and <code><a href="reference/mcp_server.html">?mcp_server</a></code> for server use, compatibility, and tracing.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

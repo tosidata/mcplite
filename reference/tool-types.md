@@ -1,9 +1,11 @@
-# Define MCP tool argument schemas
+# Define MCP tool schemas
 
-These helpers create the JSON Schema subset that `mcplite` advertises
-for tool arguments. They describe inputs for clients; tool functions
-still own domain validation, coercion, authorization or access checks,
-side-effect safety, output sanitization, and rate limiting where needed.
+These helpers create common JSON Schema descriptions for tool arguments
+and output. `type_from_schema()` wraps a complete schema supplied as a
+list or JSON string without removing JSON Schema 2020-12 keywords. A
+complete tool input schema can be passed directly as
+`arguments = type_from_schema(...)` when it has direct root
+`type = "object"`.
 
 ## Usage
 
@@ -41,6 +43,7 @@ type_ignore()
 - required:
 
   Whether the argument is listed as required in the parent schema.
+  `FALSE` permits omission but does not set an R default.
 
 - values:
 
@@ -81,12 +84,20 @@ A lightweight mcplite tool type object.
 
 ## Details
 
-Generated schemas are MCP-compatible JSON Schema objects. When `$schema`
-is absent, MCP treats schemas as JSON Schema 2020-12.
-`type_from_schema()` callers are responsible for supplying valid
-MCP-compatible schemas. List input preserves the supplied R list shape:
-use a named empty list for [`{}`](https://rdrr.io/r/base/Paren.html) and
-an unnamed empty list for `[]`.
+When `$schema` is absent, MCP treats schemas as JSON Schema 2020-12.
+Authors are responsible for schema validity and for runtime input/output
+conformance, domain validation, authorization or access checks,
+side-effect safety, output sanitization, and rate limiting where needed.
+List input preserves the supplied R list shape: use a named empty list
+for [`{}`](https://rdrr.io/r/base/Paren.html) and an unnamed empty list
+for `[]`.
+
+Incoming JSON arrays remain R lists. These helpers do not coerce or
+validate argument values or supply R defaults. If an argument may be
+omitted, give the R function a default for it.
+
+`type_ignore()` omits an argument from the advertised schema. It does
+not reject a caller-supplied argument or enforce permissions.
 
 ## Examples
 

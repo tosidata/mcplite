@@ -17,7 +17,7 @@ required for ordinary mcplite tools."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">mcplite</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,11 @@ required for ordinary mcplite tools."></head><body>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/mcplite.html">Get started</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-guides" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Guides</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-guides"><li><a class="dropdown-item" href="../articles/writing-tools.html">Write tools</a></li>
+    <li><a class="dropdown-item" href="../articles/returning-results.html">Return results</a></li>
+  </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -69,8 +74,8 @@ accepted when supplied directly.</p></dd>
 
 
 <dt id="arg-instructions">instructions<a class="anchor" aria-label="anchor" href="#arg-instructions"></a></dt>
-<dd><p>Optional server instructions to advertise to clients that
-negotiate a protocol version that supports them.</p></dd>
+<dd><p>Optional server instructions to advertise to clients
+using a protocol version that supports them.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -79,23 +84,57 @@ negotiate a protocol version that supports them.</p></dd>
 It blocks the current R process until standard input closes.</p>
     </div>
     <div class="section level2">
-    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p><code>mcplite</code> supports the lifecycle, ping, <code>tools/list</code>, and <code>tools/call</code> subset
-for protocol versions <code>2024-11-05</code>, <code>2025-06-18</code>, and <code>2025-11-25</code>. Tools
-may return ordinary R values for legacy text conversion or opt into native
-content and structured output with <code><a href="tool_result.html">tool_result()</a></code>. Structured output,
-output schemas, audio, resource links, and per-content metadata require MCP
-<code>2025-06-18</code> or later. Text, images, embedded resources, annotations, and
-result metadata also work with <code>2024-11-05</code>.</p>
-<p>The server does not implement JSON-RPC batching, HTTP transports, sessions,
-prompts, resource listing or reading, sampling, elicitation, roots, tasks,
-progress notifications, or server-initiated requests. Embedded resource
-blocks are self-contained, and resource links do not make their URIs
-readable through <code>mcplite</code>.</p>
-<p>Supply tool definitions directly. For client-launched workflows, put the
-complete server setup in a script that defines or sources tools and ends with
-<code>mcplite::mcp_server(actual_tool_or_list)</code>, then launch that script with
-<code>Rscript --vanilla /absolute/path/to/server.R</code>.</p>
+    <h2 id="run-a-server">Run a server<a class="anchor" aria-label="anchor" href="#run-a-server"></a></h2>
+
+
+<p>Supply one tool or a list of tools directly. Put the complete setup in a
+script that defines or sources tools and ends with
+<code>mcplite::mcp_server(actual_tool_or_list)</code>. Configure the MCP client to launch
+it with <code>Rscript --vanilla /absolute/path/to/server.R</code>; use an absolute script
+path because the client's working directory is not guaranteed. The call
+blocks until standard input closes, so use a client-launched script rather
+than an interactive R console.</p>
+<p>Tools may return ordinary R values for text conversion or opt into native
+content and structured output with <code><a href="tool_result.html">tool_result()</a></code>. See <a href="mcplite-results.html">mcplite-results</a>
+for exact mappings and payload JSON options. Set those options before
+constructing results and starting the server, and keep them stable while it
+runs. Tools own input validation, output conformance, permissions, and safe
+side effects; schemas are not authorization or sandboxing.</p>
+<p><strong>Keep stdout exclusively for MCP protocol messages.</strong> Send diagnostics and
+telemetry to stderr or a remote exporter, not stdout.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="server-scope">Server scope<a class="anchor" aria-label="anchor" href="#server-scope"></a></h2>
+
+
+<p><code>mcplite</code> is a tools-only, stdio-only server. It does not implement JSON-RPC
+batching, HTTP transports, sessions, prompts, resource listing or reading,
+subscriptions, cancellation, sampling, elicitation, roots, Tasks, MCP Apps,
+progress notifications, or server-initiated and other multi-round-trip
+requests. Embedded resource blocks are self-contained, and resource links
+do not make their URIs readable through <code>mcplite</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="protocol-compatibility">Protocol compatibility<a class="anchor" aria-label="anchor" href="#protocol-compatibility"></a></h2>
+
+
+<p>The same server definition supports four MCP versions. A tool remains
+available when its output schema cannot be represented by the client's
+protocol. Compatible explicit or generated text content remains available
+when structured content is omitted. Tool authors still own full schema
+validity and runtime input/output conformance.</p><table class="table table"><tr><td>MCP version</td><td>Lifecycle</td><td>Output schemas</td><td>Structured content</td><td>Audio, resource links, per-content metadata</td></tr><tr><td><code>2026-07-28</code></td><td>Protocol selected per request</td><td>Every supported shape</td><td>Every supported JSON value</td><td>Supported</td></tr><tr><td><code>2025-11-25</code></td><td><code>initialize</code> first</td><td>Direct object-root only</td><td>Object values only</td><td>Supported</td></tr><tr><td><code>2025-06-18</code></td><td><code>initialize</code> first</td><td>Direct object-root only</td><td>Object values only</td><td>Supported</td></tr><tr><td><code>2024-11-05</code></td><td><code>initialize</code> first</td><td>Omitted</td><td>Omitted</td><td>Unsupported</td></tr></table><p>Text, images, embedded resources, annotations, and result metadata work in
+every supported version. A <code>2024-11-05</code> call returning audio or a resource
+link receives a contained tool-level error instead of partial content or
+server termination.</p>
+<p>Modern <code>2026-07-28</code> clients select the protocol with per-request metadata.
+<code>server/discover</code>, <code>tools/list</code>, and <code>tools/call</code> do not require <code>initialize</code>.
+Discovery advertises <code>2026-07-28</code>, <code>2025-11-25</code>, <code>2025-06-18</code>, and
+<code>2024-11-05</code> in that preference order. Every successful modern result
+includes <code>resultType = "complete"</code> and the server's canonical identity in
+<code>_meta["io.modelcontextprotocol/serverInfo"]</code>. Modern <code>server/discover</code> and
+<code>tools/list</code> results also include public cache hints with a 300000 millisecond
+TTL. Modern <code>ping</code> is unsupported. Legacy clients retain <code>ping</code>, <code>tools/list</code>,
+and <code>tools/call</code> after initialization.</p>
     </div>
     <div class="section level2">
     <h2 id="opentelemetry-tracing">OpenTelemetry tracing<a class="anchor" aria-label="anchor" href="#opentelemetry-tracing"></a></h2>
@@ -103,9 +142,10 @@ complete server setup in a script that defines or sources tools and ends with
 
 <p><code>mcplite</code> automatically creates one OpenTelemetry server span for every
 parsed MCP request or notification that passes JSON-RPC envelope validation.
-This includes initialization and notifications, ping, tool discovery and
-calls, and valid unknown methods. Blank input, JSON parse failures, and
-malformed JSON-RPC envelopes do not create MCP operation spans.</p>
+This includes retained legacy initialization and ping, notifications, modern
+discovery, tool listing and calls, and valid unknown methods. Blank input,
+JSON parse failures, and malformed JSON-RPC envelopes do not create MCP
+operation spans.</p>
 <p>Tool authors do not need to call <code><a href="https://otel.r-lib.org/reference/start_local_active_span.html" class="external-link">otel::start_local_active_span()</a></code> for the
 MCP operation or tool invocation. The server span remains active while tool
 code runs, so optional tool-authored spans can become children without being

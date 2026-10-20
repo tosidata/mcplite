@@ -1,5 +1,30 @@
 # Changelog
 
+## mcplite 0.2.0
+
+- Adds stateless MCP `2026-07-28` support while retaining
+  initialize-based MCP `2024-11-05`, `2025-06-18`, and `2025-11-25`.
+  Modern discovery, tool listing, and tool calls work without
+  initialization; legacy ping behavior is preserved, while modern ping
+  is unsupported.
+- Adds `server/discover` with deterministic four-version ordering.
+  Successful modern results include canonical server identity and
+  `resultType = "complete"`; discovery and tool-list results include
+  public cache hints.
+- Expands tool schemas and protocol-native results. Complete object-root
+  input schemas retain JSON Schema 2020-12 keywords; modern clients can
+  receive supported output-schema roots and all JSON structured-content
+  shapes, while older protocols receive compatible projections and
+  fallback content.
+- Adds payload options `mcplite.json.null`, `mcplite.json.na`, and
+  `mcplite.json.auto_unbox`, preserving published defaults and fixed
+  protocol and metadata encoding. See
+  [`help("mcplite-results")`](https://tosidata.github.io/mcplite/reference/mcplite-results.md)
+  for configuration details.
+- Restores empty structured-root lists as
+  [`{}`](https://rdrr.io/r/base/Paren.html) and removes the unreleased
+  scalar-NA coercion in favor of jsonlite’s class-specific mappings.
+
 ## mcplite 0.1.0
 
 CRAN release: 2026-08-03

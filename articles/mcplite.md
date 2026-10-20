@@ -1,13 +1,7 @@
 # Get started with mcplite
 
-``` r
-
-library(mcplite)
-```
-
-This article shows the complete first-use workflow: install `mcplite`,
-save an R server script, configure an MCP client to launch it, and call
-its tools.
+Connect a local MCP client to an R tool and make a first call. You need
+R, `mcplite`, and a client that can launch a stdio MCP server.
 
 ## 1. Install mcplite
 
@@ -61,7 +55,8 @@ mcp_server(list(inventory_status))
 ```
 
 A tool combines an R function with a client-facing name, description,
-and argument schema.
+and argument schema. Schemas describe inputs; they do not validate them.
+The function checks which items it can look up.
 
 [`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md)
 blocks the R process while it serves requests. Put it at the end of a
@@ -69,10 +64,13 @@ client-launched script, after all tools have been defined or sourced.
 
 ## 3. Configure the client
 
-Add a server entry to your MCP client’s configuration. Keep `Rscript` as
-the command, and replace the server path below with the absolute path to
-the `server.R` file you saved. The script path must be absolute because
-the client’s working directory is not guaranteed.
+Add a server entry to your MCP client’s configuration. The `command`
+must resolve to the `Rscript` executable. GUI-launched clients may not
+inherit your shell’s search path; if `Rscript` is not discoverable, run
+`Sys.which("Rscript")` in R and use the returned absolute path as the
+client’s `command`. Replace the server path below with the absolute path
+to the `server.R` file you saved. The script path must be absolute
+because the client’s working directory is not guaranteed.
 
 ``` json
 {
@@ -99,47 +97,27 @@ inventory for coffee. Success means the result identifies `coffee` with
 a count of `0`; exact presentation varies by client.
 
 The client and server communicate over standard input and output. The
-server exits when standard input closes.
+server exits when standard input closes. Keep stdout exclusively for MCP
+protocol traffic: do not write diagnostic output or telemetry there. Use
+stderr for local diagnostics.
 
-## Return ordinary R values
+## Run with appropriate permissions
 
-Ordinary R return values are the simplest default. Character values
-become text, while other JSON-serializable values, such as the named
-list returned by `inventory_status`, are encoded as JSON in a text
-content block.
+Schemas are not authorization or sandboxing. Each tool is responsible
+for permission checks, credential handling, safe side effects, and
+appropriate output limits. Run the server with only the operating-system
+and data permissions its tools need.
 
-Use
-[`tool_result()`](https://tosidata.github.io/mcplite/reference/tool_result.md)
-only when a tool needs explicit MCP content blocks, structured content,
-result metadata, or an error result. See the reference pages for
-[`tool()`](https://tosidata.github.io/mcplite/reference/tool.md),
-[`tool_result()`](https://tosidata.github.io/mcplite/reference/tool_result.md),
-and the `content_*()` and `type_*()` helpers for the full API.
+## Next steps
 
-## Advanced next steps
-
-- **Rich and structured results:**
-  [`tool_result()`](https://tosidata.github.io/mcplite/reference/tool_result.md)
-  supports explicit content and structured output. An `output_schema`
-  advertises object-shaped structured content; when content is omitted,
-  structured results include a text fallback for older clients.
-- **Protocol compatibility:** `mcplite` negotiates its supported MCP
-  version with the client. Some content types and structured output
-  require newer MCP versions; the reference documentation records the
-  compatibility details.
-- **ellmer:** Compatible
-  [`ellmer::tool()`](https://ellmer.tidyverse.org/reference/tool.html)
-  definitions can be supplied directly to
+- [Write
+  tools](https://tosidata.github.io/mcplite/articles/writing-tools.md)
+  to handle arguments, defaults, arrays, and failures, then describe
+  more complex inputs.
+- [Return
+  results](https://tosidata.github.io/mcplite/articles/returning-results.md)
+  to add structured data or rich content to a tool.
+- See
   [`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md)
-  when interoperability is needed.
-- **OpenTelemetry:** Standard `otel` and `otelsdk` configuration
-  applies. Never send telemetry to stdout: stdout is reserved for MCP
-  protocol traffic. Use stderr or a remote exporter instead.
-
-## Trust and safety
-
-Schemas describe inputs and outputs to clients; they are not
-authorization or sandboxing. Each tool function remains responsible for
-domain validation, permission checks, credential handling, safe side
-effects, and appropriate output and payload limits. Run the server with
-only the operating-system and data permissions its tools need.
+  for server scope, protocol compatibility, and optional OpenTelemetry
+  tracing.

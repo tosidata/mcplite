@@ -3,8 +3,8 @@
 `tool_result()` is the explicit opt-in boundary for returning
 protocol-native MCP results. Its `content` must be created with one of
 the `content_*()` constructors; ordinary R values, including bare lists
-and JSON strings, retain the legacy single-text-block conversion used by
-[`tool()`](https://tosidata.github.io/mcplite/reference/tool.md).
+and JSON strings, retain the single-text-block conversion used by
+[`mcplite::tool()`](https://tosidata.github.io/mcplite/reference/tool.md).
 
 ## Usage
 
@@ -28,8 +28,12 @@ tool_result(
 
 - structured_content:
 
-  Optional named list representing a JSON object. An empty object is
-  allowed. `mcplite` does not validate this value against a tool's
+  Optional R value representable as a JSON object, array, or scalar.
+  `NULL` means absence; a bare empty list at this root represents
+  [`{}`](https://rdrr.io/r/base/Paren.html). See
+  [mcplite-results](https://tosidata.github.io/mcplite/reference/mcplite-results.md)
+  for other mappings and payload options. `mcplite` checks JSON
+  representability but does not validate this value against a tool's
   advertised output schema.
 
 - is_error:
@@ -45,17 +49,31 @@ tool_result(
 
 A protocol-native tool result for return from a tool function.
 
-## Details
+## Content and fallback
 
 When `structured_content` is supplied and `content` is omitted,
 `tool_result()` generates exactly one JSON text fallback block.
 Explicitly supplied content is preserved as-is and no fallback is
-appended. Structured content and tool output schemas are sent only to
-clients using MCP `2025-06-18` or later; older clients receive the
-generated text fallback.
+appended. Keep that content useful on its own: a client's protocol may
+omit structured content or restrict its shape. See
+[`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md)
+under "Protocol compatibility".
+
+See [Return-value
+mappings](https://tosidata.github.io/mcplite/reference/mcplite-results.md)
+for exact R-to-JSON mappings and payload options. JSON-looking strings
+and jsonlite `json` objects remain string values in
+`structured_content`; they are not parsed as raw JSON. Tool authors own
+conformance with any advertised output schema.
+
+## Tool errors
+
+`is_error = TRUE` reports a tool-level error while retaining the normal
+MCP tool-result envelope.
 
 ## See also
 
+[mcplite-results](https://tosidata.github.io/mcplite/reference/mcplite-results.md),
 [`content_text()`](https://tosidata.github.io/mcplite/reference/content-blocks.md),
 [`content_image()`](https://tosidata.github.io/mcplite/reference/content-blocks.md),
 [`content_audio()`](https://tosidata.github.io/mcplite/reference/content-blocks.md),
@@ -159,7 +177,7 @@ tool_result(structured_content = list(ok = TRUE, count = 2L))
 #> [1] "text"
 #> 
 #> $text
-#> {"ok":true,"count":2} 
+#> [1] "{\"ok\":true,\"count\":2}"
 #> 
 #> $annotations
 #> named list()

@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">mcplite</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,6 +30,13 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
 <li class="active nav-item"><a class="nav-link" href="../articles/mcplite.html">Get started</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-guides" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Guides</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-guides">
+<li><a class="dropdown-item" href="../articles/writing-tools.html">Write tools</a></li>
+    <li><a class="dropdown-item" href="../articles/returning-results.html">Return results</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
@@ -60,19 +67,17 @@
 
     
     
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tosidata.github.io/mcplite/">mcplite</a></span><span class="op">)</span></span></code></pre></div>
-<p>This article shows the complete first-use workflow: install
-<code>mcplite</code>, save an R server script, configure an MCP client
-to launch it, and call its tools.</p>
+<p>Connect a local MCP client to an R tool and make a first call. You
+need R, <code>mcplite</code>, and a client that can launch a stdio MCP
+server.</p>
 <div class="section level2">
 <h2 id="install-mcplite">1. Install mcplite<a class="anchor" aria-label="anchor" href="#install-mcplite"></a>
 </h2>
 <p>Install the released version from CRAN:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"mcplite"</span><span class="op">)</span></span></code></pre></div>
 <p>Install the development version from GitHub:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"tosidata/mcplite"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -80,7 +85,7 @@ to launch it, and call its tools.</p>
 </h2>
 <p>Save the following as <code>server.R</code>. It defines one inventory
 tool and then starts the server.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tosidata.github.io/mcplite/">mcplite</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">inventory_status</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/tool.html">tool</a></span><span class="op">(</span></span>
@@ -108,7 +113,8 @@ tool and then starts the server.</p>
 <span></span>
 <span><span class="fu"><a href="../reference/mcp_server.html">mcp_server</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">inventory_status</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>A tool combines an R function with a client-facing name, description,
-and argument schema.</p>
+and argument schema. Schemas describe inputs; they do not validate them.
+The function checks which items it can look up.</p>
 <p><code><a href="../reference/mcp_server.html">mcp_server()</a></code> blocks the R process while it serves
 requests. Put it at the end of a client-launched script, after all tools
 have been defined or sourced.</p>
@@ -116,22 +122,26 @@ have been defined or sourced.</p>
 <div class="section level2">
 <h2 id="configure-the-client">3. Configure the client<a class="anchor" aria-label="anchor" href="#configure-the-client"></a>
 </h2>
-<p>Add a server entry to your MCP client’s configuration. Keep
-<code>Rscript</code> as the command, and replace the server path below
+<p>Add a server entry to your MCP client’s configuration. The
+<code>command</code> must resolve to the <code>Rscript</code>
+executable. GUI-launched clients may not inherit your shell’s search
+path; if <code>Rscript</code> is not discoverable, run
+<code>Sys.which("Rscript")</code> in R and use the returned absolute
+path as the client’s <code>command</code>. Replace the server path below
 with the absolute path to the <code>server.R</code> file you saved. The
 script path must be absolute because the client’s working directory is
 not guaranteed.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  <span class="dt">"mcpServers"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>    <span class="dt">"r-inventory"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>      <span class="dt">"command"</span><span class="fu">:</span> <span class="st">"Rscript"</span><span class="fu">,</span></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>      <span class="dt">"args"</span><span class="fu">:</span> <span class="ot">[</span></span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>        <span class="st">"--vanilla"</span><span class="ot">,</span></span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>        <span class="st">"/absolute/path/to/server.R"</span></span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>      <span class="ot">]</span></span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>    <span class="fu">}</span></span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  <span class="fu">}</span></span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode json"><code class="sourceCode json"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="dt">"mcpServers"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>    <span class="dt">"r-inventory"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>      <span class="dt">"command"</span><span class="fu">:</span> <span class="st">"Rscript"</span><span class="fu">,</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>      <span class="dt">"args"</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>        <span class="st">"--vanilla"</span><span class="ot">,</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>        <span class="st">"/absolute/path/to/server.R"</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>      <span class="ot">]</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
 <p>Configuration file names and locations vary by client; use the
 client’s MCP server configuration instructions.</p>
 </div>
@@ -144,55 +154,31 @@ check the local inventory for coffee. Success means the result
 identifies <code>coffee</code> with a count of <code>0</code>; exact
 presentation varies by client.</p>
 <p>The client and server communicate over standard input and output. The
-server exits when standard input closes.</p>
+server exits when standard input closes. Keep stdout exclusively for MCP
+protocol traffic: do not write diagnostic output or telemetry there. Use
+stderr for local diagnostics.</p>
 </div>
 <div class="section level2">
-<h2 id="return-ordinary-r-values">Return ordinary R values<a class="anchor" aria-label="anchor" href="#return-ordinary-r-values"></a>
+<h2 id="run-with-appropriate-permissions">Run with appropriate permissions<a class="anchor" aria-label="anchor" href="#run-with-appropriate-permissions"></a>
 </h2>
-<p>Ordinary R return values are the simplest default. Character values
-become text, while other JSON-serializable values, such as the named
-list returned by <code>inventory_status</code>, are encoded as JSON in a
-text content block.</p>
-<p>Use <code><a href="../reference/tool_result.html">tool_result()</a></code> only when a tool needs explicit MCP
-content blocks, structured content, result metadata, or an error result.
-See the reference pages for <code><a href="../reference/tool.html">tool()</a></code>,
-<code><a href="../reference/tool_result.html">tool_result()</a></code>, and the <code>content_*()</code> and
-<code>type_*()</code> helpers for the full API.</p>
+<p>Schemas are not authorization or sandboxing. Each tool is responsible
+for permission checks, credential handling, safe side effects, and
+appropriate output limits. Run the server with only the operating-system
+and data permissions its tools need.</p>
 </div>
 <div class="section level2">
-<h2 id="advanced-next-steps">Advanced next steps<a class="anchor" aria-label="anchor" href="#advanced-next-steps"></a>
+<h2 id="next-steps">Next steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>
 </h2>
 <ul>
 <li>
-<strong>Rich and structured results:</strong>
-<code><a href="../reference/tool_result.html">tool_result()</a></code> supports explicit content and structured
-output. An <code>output_schema</code> advertises object-shaped
-structured content; when content is omitted, structured results include
-a text fallback for older clients.</li>
+<a href="writing-tools.html">Write tools</a> to handle arguments,
+defaults, arrays, and failures, then describe more complex inputs.</li>
 <li>
-<strong>Protocol compatibility:</strong> <code>mcplite</code>
-negotiates its supported MCP version with the client. Some content types
-and structured output require newer MCP versions; the reference
-documentation records the compatibility details.</li>
-<li>
-<strong>ellmer:</strong> Compatible <code><a href="https://ellmer.tidyverse.org/reference/tool.html" class="external-link">ellmer::tool()</a></code>
-definitions can be supplied directly to <code><a href="../reference/mcp_server.html">mcp_server()</a></code> when
-interoperability is needed.</li>
-<li>
-<strong>OpenTelemetry:</strong> Standard <code>otel</code> and
-<code>otelsdk</code> configuration applies. Never send telemetry to
-stdout: stdout is reserved for MCP protocol traffic. Use stderr or a
-remote exporter instead.</li>
+<a href="returning-results.html">Return results</a> to add
+structured data or rich content to a tool.</li>
+<li>See <code><a href="../reference/mcp_server.html">mcp_server()</a></code> for server scope, protocol
+compatibility, and optional OpenTelemetry tracing.</li>
 </ul>
-</div>
-<div class="section level2">
-<h2 id="trust-and-safety">Trust and safety<a class="anchor" aria-label="anchor" href="#trust-and-safety"></a>
-</h2>
-<p>Schemas describe inputs and outputs to clients; they are not
-authorization or sandboxing. Each tool function remains responsible for
-domain validation, permission checks, credential handling, safe side
-effects, and appropriate output and payload limits. Run the server with
-only the operating-system and data permissions its tools need.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

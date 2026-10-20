@@ -13,7 +13,7 @@ to opt into protocol-native content, structured output, or result metadata."></h
 
     <a class="navbar-brand me-2" href="../index.html">mcplite</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -22,6 +22,11 @@ to opt into protocol-native content, structured output, or result metadata."></h
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/mcplite.html">Get started</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-guides" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Guides</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-guides"><li><a class="dropdown-item" href="../articles/writing-tools.html">Write tools</a></li>
+    <li><a class="dropdown-item" href="../articles/returning-results.html">Return results</a></li>
+  </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -78,7 +83,8 @@ to opt into protocol-native content, structured output, or result metadata.</p>
 
 <dt id="arg-arguments">arguments<a class="anchor" aria-label="anchor" href="#arg-arguments"></a></dt>
 <dd><p>Named list of argument schemas created by the <code>type_*()</code>
-helpers.</p></dd>
+helpers, or one complete direct object-root schema created by
+<code><a href="tool-types.html">type_from_schema()</a></code>.</p></dd>
 
 
 <dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
@@ -92,26 +98,50 @@ use 1 to 128 characters from letters, digits, underscore, dot, and hyphen.</p></
 
 
 <dt id="arg-output-schema">output_schema<a class="anchor" aria-label="anchor" href="#arg-output-schema"></a></dt>
-<dd><p>Optional object-shaped output schema created by a
-supported <code>type_*()</code> helper. Raw schema lists must be wrapped with
-<code><a href="tool-types.html">type_from_schema()</a></code>. The schema is advertised to MCP <code>2025-06-18</code> and
-later clients; tool authors remain responsible for result conformance.</p></dd>
+<dd><p>Optional output schema created by a supported <code>type_*()</code>
+helper. Raw schema lists must be wrapped with <code><a href="tool-types.html">type_from_schema()</a></code>. See
+"Complete schemas and structured output" for author responsibilities and
+protocol compatibility.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A lightweight mcplite tool definition.</p>
+    <p>The supplied function with MCP metadata attached. It remains directly
+callable as an R function and can be supplied to <code><a href="mcp_server.html">mcp_server()</a></code>.</p>
     </div>
     <div class="section level2">
-    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Character values are returned as literal text, character vectors are joined
-with newlines, and other JSON-serializable R values are encoded as JSON.
-Pre-serialized JSON strings remain text, and bare lists are ordinary values,
-not MCP result objects.</p>
-<p>An <code>output_schema</code> advertises the expected object-shaped
-<code>structured_content</code> to MCP <code>2025-06-18</code> and later clients. <code>mcplite</code> checks
-that the normalized schema has JSON-object wire shape and is serializable,
-but does not perform runtime schema validation.</p>
+    <h2 id="arguments-and-defaults">Arguments and defaults<a class="anchor" aria-label="anchor" href="#arguments-and-defaults"></a></h2>
+
+
+<p>Incoming JSON arrays reach <code>fun</code> as R lists, not atomic vectors. Schemas do
+not coerce or validate argument values or supply R defaults. Marking a
+property <code>required = FALSE</code> permits omission in the advertised schema; the
+R function must provide its own default for calls that omit that argument.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="return-values">Return values<a class="anchor" aria-label="anchor" href="#return-values"></a></h2>
+
+
+<p>Ordinary character values become literal text, not parsed JSON. Bare lists
+are ordinary values, not MCP result objects. See
+<a href="mcplite-results.html">Return-value mappings</a> for exact conversions, empty and
+missing values, and payload JSON options. Configure those options before
+constructing results and starting the server.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="complete-schemas-and-structured-output">Complete schemas and structured output<a class="anchor" aria-label="anchor" href="#complete-schemas-and-structured-output"></a></h2>
+
+
+<p><code>arguments</code> also accepts one complete object-root schema from
+<code><a href="tool-types.html">type_from_schema()</a></code>. Complete input schemas must have direct root
+<code>type = "object"</code>; JSON Schema 2020-12 keywords such as <code>$schema</code>, <code>$defs</code>,
+<code>$ref</code>, composition, and conditionals are preserved.</p>
+<p>An <code>output_schema</code> advertises the expected <code>structured_content</code> shape. A
+client's protocol can omit an incompatible output schema without removing
+the tool; see <code><a href="mcp_server.html">mcp_server()</a></code> under "Protocol compatibility" for the exact
+version rules. <code>mcplite</code> checks schema container shape and serializability,
+not full schema validity or runtime input/output conformance. Tool authors
+own those guarantees.</p>
     </div>
 
     <div class="section level2">
@@ -127,6 +157,8 @@ but does not perform runtime schema validation.</p>
 <span class="r-in"><span>    y <span class="op">=</span> <span class="fu"><a href="tool-types.html">type_number</a></span><span class="op">(</span><span class="st">"Second number."</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">add_numbers</span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 5</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -1,14 +1,10 @@
 # mcplite
 
-`mcplite` lets you expose R functions as [Model Context
-Protocol](https://modelcontextprotocol.io/) (MCP) tools. It runs a small
-server over standard input and output, which is the transport most
-desktop MCP clients use to launch local tool servers.
-
-Documentation is available at <https://tosidata.github.io/mcplite/>.
-
-Use it when you want an MCP client to call R code such as data lookups,
-calculations, report helpers, or local automation.
+`mcplite` exposes R functions as [Model Context
+Protocol](https://modelcontextprotocol.io/) (MCP) tools through a
+lightweight standard-input/standard-output (stdio) server. Use it when a
+local MCP client needs to call R code for data lookups, calculations,
+report helpers, or automation.
 
 ## Installation
 
@@ -78,44 +74,43 @@ starts serving immediately and runs until standard input closes, so
 launch it through the MCP client rather than from an interactive R
 console.
 
-## Results
+## Supported scope
 
-For most tools, return an ordinary R value. Character values become
-text, while other JSON-serializable values are returned as JSON in a
-text content block. Bare lists are ordinary results, not MCP result
-objects.
+`mcplite` is a tools-only, stdio-only MCP server. It supports modern MCP
+`2026-07-28` and legacy MCP `2024-11-05`, `2025-06-18`, and
+`2025-11-25`. The same server definition works with modern and legacy
+clients.
 
-Use
-[`tool_result()`](https://tosidata.github.io/mcplite/reference/tool_result.md)
-when a tool needs rich content blocks or structured results. See
-[`?tool_result`](https://tosidata.github.io/mcplite/reference/tool_result.md)
-for the result formats and compatibility details.
-
-## Scope
-
-`mcplite` supports local, client-launched stdio tool servers. It does
-not implement HTTP transport or the MCP prompts, resources, and sampling
-capabilities. Tools can still return supported content blocks; content
-blocks are tool results, not implementations of those MCP capabilities.
-
-## ellmer interoperability
-
-Compatible
+Tools can return ordinary R values, rich MCP content, structured
+results, and tool-level errors. Compatible
 [`ellmer::tool()`](https://ellmer.tidyverse.org/reference/tool.html)
-definitions can be passed directly to
-[`mcp_server()`](https://tosidata.github.io/mcplite/reference/mcp_server.md).
-`ellmer` is optional and is not needed for tools defined with `mcplite`.
+definitions can also be supplied directly.
 
-## Function reference
+The package focuses on local, client-launched tools. It does not provide
+an HTTP transport, prompt or resource endpoints, or multi-round-trip MCP
+feature families. Tools can still include supported embedded resources
+and resource links in their results.
 
-See [`?tool`](https://tosidata.github.io/mcplite/reference/tool.md) for
-tool definitions,
+## Learn more
+
+Choose the next task:
+
+- [Get
+  started](https://tosidata.github.io/mcplite/articles/mcplite.html):
+  save a server script, connect a client, and make a first call.
+- [Write
+  tools](https://tosidata.github.io/mcplite/articles/writing-tools.html):
+  describe arguments, handle defaults and arrays, and report failures.
+- [Return
+  results](https://tosidata.github.io/mcplite/articles/returning-results.html):
+  choose ordinary values, structured content, or rich content blocks.
+
+For installed help, start with
+[`?mcplite`](https://tosidata.github.io/mcplite/reference/mcplite.md).
+See [`?tool`](https://tosidata.github.io/mcplite/reference/tool.md) and
 [`help("tool-types", package = "mcplite")`](https://tosidata.github.io/mcplite/reference/tool-types.md)
-for schema helpers,
-[`?tool_result`](https://tosidata.github.io/mcplite/reference/tool_result.md)
-and
-[`help("content-blocks", package = "mcplite")`](https://tosidata.github.io/mcplite/reference/content-blocks.md)
-for rich results, and
+for definitions and schemas,
+[`help("mcplite-results", package = "mcplite")`](https://tosidata.github.io/mcplite/reference/mcplite-results.md)
+for exact return-value mappings and payload options, and
 [`?mcp_server`](https://tosidata.github.io/mcplite/reference/mcp_server.md)
-for server behavior, scope, lifecycle, interoperability, and tracing
-details.
+for server use, compatibility, and tracing.
