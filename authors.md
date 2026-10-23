@@ -7,7 +7,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/tosidata/mcplite/blob/main/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/tosidata/mcplite/blob/v0.2.0/DESCRIPTION)
 
 Itkonen J (2026). *mcplite: Lightweight Stdio MCP Server for R*. R
 package version 0.2.0, <https://tosidata.github.io/mcplite/>.

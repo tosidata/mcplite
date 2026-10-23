@@ -2,6 +2,8 @@
 
 ## mcplite 0.2.0
 
+CRAN release: 2026-10-20
+
 - Adds stateless MCP `2026-07-28` support while retaining
   initialize-based MCP `2024-11-05`, `2025-06-18`, and `2025-11-25`.
   Modern discovery, tool listing, and tool calls work without

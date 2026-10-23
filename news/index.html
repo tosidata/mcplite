@@ -35,11 +35,11 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tosidata/mcplite/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tosidata/mcplite/blob/v0.2.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.2.0" id="mcplite-020">mcplite 0.2.0<a class="anchor" aria-label="anchor" href="#mcplite-020"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="mcplite-020">mcplite 0.2.0<a class="anchor" aria-label="anchor" href="#mcplite-020"></a></h2><p class="text-muted">CRAN release: 2026-10-20</p>
 <ul><li>Adds stateless MCP <code>2026-07-28</code> support while retaining initialize-based MCP <code>2024-11-05</code>, <code>2025-06-18</code>, and <code>2025-11-25</code>. Modern discovery, tool listing, and tool calls work without initialization; legacy ping behavior is preserved, while modern ping is unsupported.</li>
 <li>Adds <code>server/discover</code> with deterministic four-version ordering. Successful modern results include canonical server identity and <code>resultType = "complete"</code>; discovery and tool-list results include public cache hints.</li>
 <li>Expands tool schemas and protocol-native results. Complete object-root input schemas retain JSON Schema 2020-12 keywords; modern clients can receive supported output-schema roots and all JSON structured-content shapes, while older protocols receive compatible projections and fallback content.</li>
